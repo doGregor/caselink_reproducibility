@@ -65,7 +65,7 @@ python promptcase/preprocessing/openaiAPI.py --dataset coliee_2022 --data_split 
 #### 2.1.2 Legal Relation Extraction
 
 ```
-python Information_extraction/knowledge_graph.py --dataset coliee_2022 --data_split test --feature fact
+python casegnn/information_extraction/knowledge_graph.py --dataset coliee_2022 --data_split test --feature issue
 
 python Information_extraction/relation_extractor.py --data 2022 --dataset train --feature fact
 
