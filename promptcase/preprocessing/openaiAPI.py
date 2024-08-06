@@ -46,7 +46,7 @@ if os.path.isdir(WDIR):
 else:
     os.makedirs(WDIR)
 
-for pfile in tqdm(files[:100]):
+for pfile in tqdm(files[:]):
     if not pfile.endswith('txt'):
         continue
     file_name = pfile.split('.')[0]
