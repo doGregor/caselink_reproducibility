@@ -118,7 +118,7 @@ def stanford_ie(input_filename, verbose=True, generate_graphviz=False):
     else:
         java_process = Popen(command, stdout=stderr, stderr=open(os.devnull, 'w'), shell=True)
     java_process.wait()
-    assert not java_process.returncode, 'ERROR: Call to stanford_ie exited with a non-zero code status.'
+    assert not java_process.returncode, f'ERROR: Call to stanford_ie exited with a non-zero code status.'
 
     with open(out, 'r') as output_file:
         results_str = output_file.readlines()
