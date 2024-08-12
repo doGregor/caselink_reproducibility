@@ -8,7 +8,20 @@ import json
 from torch_metrics import t_metrics, metric, yf_metric, rank
 
 
-def forward(data, model, device, writer, dataloader, sumfact_pool_dataset, referissue_pool_dataset, label_dict, yf_path, epoch, temp, bm25_hard_neg_dict, hard_neg, hard_neg_num, train_flag, embedding_saving, optimizer=None):
+def get_path():
+    path = os.getcwd()
+    path_clean = []
+    for x in path.split('/'):
+        if x != 'caselink_reproducibility':
+            path_clean.append(x)
+        else:
+            path_clean.append(x)
+            break
+    path = '/'.join(path_clean)
+    return path
+
+
+def forward(data, model, device, writer, dataloader, sumfact_pool_dataset, referissue_pool_dataset, label_dict, yf_path, epoch, temp, bm25_hard_neg_dict, hard_neg, hard_neg_num, train_flag, embedding_saving, optimizer=None, dataset_name='coliee_2022'):
     if train_flag:
         ## Training
         loss_model = nn.CrossEntropyLoss()
@@ -275,10 +288,14 @@ def forward(data, model, device, writer, dataloader, sumfact_pool_dataset, refer
         else:
             dataset = 'test'
         
+        save_embeddings_path = get_path() + '/datasets/' + dataset_name + '/casegnn_embeddings'
+        if not os.path.exists(save_embeddings_path):
+            os.makedirs(save_embeddings_path)
+        
         case_embedding_matrix = torch.cat((sumfact_graph_rep, referissue_graph_rep), 1) 
-        torch.save(case_embedding_matrix, os.getcwd()+'/Graph_generation/coliee'+data+'_'+dataset+'_casegnn_embedding.pt')
+        torch.save(case_embedding_matrix, save_embeddings_path + '/' + dataset + '_casegnn_embedding.pt')
 
-        with open(os.getcwd()+'/Graph_generation/coliee'+data+'_'+dataset+'_casegnn_embedding_case_name_list.json' , "w") as fOut:
+        with open(save_embeddings_path + '/' + dataset + '_casegnn_embedding_case_name_list.json' , "w") as fOut:
             json.dump(label_list, fOut)
             fOut.close() 
 
