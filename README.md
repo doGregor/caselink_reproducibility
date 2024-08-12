@@ -105,9 +105,8 @@ python promptcase/embedding/promptcase_embedding_generation.py --dataset coliee_
 
 
 python promptcase/embedding/promptcase_embedding_generation.py --dataset coliee_2022 --data_split train
-```
+``` 
 
---- TODO AB HIER
 
 ### 2.3. TACG Construction (Based on CaseGNN)
 
@@ -117,11 +116,22 @@ python casegnn/graph_generation/TACG.py --dataset coliee_2022 --data_split test 
 python casegnn/graph_generation/TACG.py --dataset coliee_2022 --data_split test --feature issue
 
 
-python casegnn/graph_generation/TACG.py --dataset coliee_2022 --data_split test --feature fact
+python casegnn/graph_generation/TACG.py --dataset coliee_2022 --data_split train --feature fact
 
-python casegnn/graph_generation/TACG.py --dataset coliee_2022 --data_split test --feature issue
+python casegnn/graph_generation/TACG.py --dataset coliee_2022 --data_split train --feature issue
 ```
 
+### 2.4. Prepare final Documents before Training (Based on CaseGNN)
+
+```
+python casegnn/graph_generation/year_filter.py --dataset coliee_2022
+
+
+python casegnn/graph_generation/bm25/bm25.py --ngram_1 4 --ngram_2 4 --topk 5 --dataset coliee_2022 --data_split train
+```
+
+
+--- TODO FULL AB HIER
 
 ### 2.4. CaseGNN Model Training and CaseGNN Embedding Generation (Based on CaseGNN)
 
