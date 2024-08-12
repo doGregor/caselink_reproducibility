@@ -18,6 +18,7 @@ model_name = 'CSHaitao/SAILER_en_finetune'
 model = AutoModel.from_pretrained(model_name)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
 
 path = os.getcwd()
 path_clean = []
@@ -59,42 +60,50 @@ with torch.no_grad():
         if num == 1:
             ## dual encoding
             fact_tokenized_id = tokenizer(fact_text, return_tensors="pt", padding=False, truncation=True, max_length=512)
+            fact_tokenized_id.to(device)
             fact_embedding = model(**fact_tokenized_id)
-            fact_embedding_matrix = fact_embedding[0][:,0] ##cls token embedding [1,768]                               
+            fact_embedding_matrix = fact_embedding[0][:,0] ##cls token embedding [1,768]
 
             issue_tokenized_id = tokenizer(issue_text, return_tensors="pt", padding=False, truncation=True, max_length=512)
+            issue_tokenized_id.to(device)
             issue_embedding = model(**issue_tokenized_id)
             issue_embedding_matrix = issue_embedding[0][:,0] ##cls token embedding [1,768]             
             
             ## cross encoding
             cross_tokenized_id = tokenizer(cross_text, return_tensors="pt", padding=False, truncation=True, max_length=512)
+            cross_tokenized_id.to(device)
             cross_embedding = model(**cross_tokenized_id)
             cross_embedding_matrix = cross_embedding[0][:,0] ##cls token embedding [1,768]                           
         
         else:
             fact_tokenized_id = tokenizer(fact_text, return_tensors="pt", padding=True, truncation=True, max_length=512)
+            fact_tokenized_id.to(device)
             fact_embedding = model(**fact_tokenized_id)
             fact_cls_embedding = fact_embedding[0][:,0] ##cls token embedding [1,768]   
             fact_embedding_matrix = torch.cat((fact_embedding_matrix, fact_cls_embedding), 0)               
             
             issue_tokenized_id = tokenizer(issue_text, return_tensors="pt", padding=True, truncation=True, max_length=512)
+            issue_tokenized_id.to(device)
             issue_embedding = model(**issue_tokenized_id)
             issue_cls_embedding = issue_embedding[0][:,0] ##cls token embedding [1,768]
             issue_embedding_matrix = torch.cat((issue_embedding_matrix,issue_cls_embedding), 0)
 
             cross_tokenized_id = tokenizer(cross_text, return_tensors="pt", padding=False, truncation=True, max_length=512)
+            cross_tokenized_id.to(device)
             cross_embedding = model(**cross_tokenized_id)
             cross_cls_embedding = cross_embedding[0][:,0] ##cls token embedding [1,768]    
             cross_embedding_matrix = torch.cat((cross_embedding_matrix, cross_cls_embedding), 0) 
-
-embedding_list.append([fact_embedding_matrix, issue_embedding_matrix, cross_embedding_matrix])
-torch.save(embedding_list, './PromptCase/promptcase_embedding/'+args.data+'_'+args.dataset+'_fact_issue_cross_embedding.pt')
 
 WDIR = path + '/datasets/' + args.dataset + '/promptcase_embeddings'
 if os.path.isdir(WDIR):
     pass
 else:
     os.makedirs(WDIR)
+fact_embedding_matrix = fact_embedding_matrix.detach().cpu()
+issue_embedding_matrix = issue_embedding_matrix.detach().cpu()
+cross_embedding_matrix = cross_embedding_matrix.detach().cpu()
+embedding_list.append([fact_embedding_matrix, issue_embedding_matrix, cross_embedding_matrix])
+torch.save(embedding_list, WDIR + '/' + args.data_split + '_fact_issue_cross_embedding.pt')
 
 with open(WDIR + '/' + args.data_split + '_fact_issue_cross_embedding_case_list.json' , "w") as fOut:
     json.dump(label_list, fOut)
