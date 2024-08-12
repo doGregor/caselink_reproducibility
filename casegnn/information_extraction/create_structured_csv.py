@@ -41,6 +41,8 @@ def main():
     # load each pickle file and create the resultant csv file
     num = 0
     for file in tqdm(pickles):
+        if os.path.exists(input_path + '/result/' + file.split("/")[-1].split(".")[0] + '.csv'):
+            continue
         with open(file, 'rb') as f:
             entities = pickle.load(f)
 
@@ -54,49 +56,52 @@ def main():
         
         # parse every row present in the intermediate csv file
         triplet = set()
-        with open(input_path + "/kg/" + file_name + ".txt-out.csv", newline='') as csvfile:
-            spamreader = csv.reader(csvfile, quotechar='|')
-            for row in spamreader:
-                if not row:
-                    continue
-                else:
-                    row[0] = row[0].strip()
-                    row[2] = row[2].strip()
-                    # if relation entity is present in entity set, only then parse futrther
-                    if row[0] in entity_set:
-                        added = False
-                        if type(row[2]) != str:
-                            continue
-                        else:
-                            e2_sentence = row[2].split(' ')
-                            # check every word in entity2, and add a new row triplet if it is present in entity2
-                            for entity in e2_sentence:
-                                if entity in entity_set:
-                                    _ = (entities[row[0]], row[0], row[1], entities[entity], row[2])
-                                    triplet.add(_)
-                                    added = True
-                            if not added:
-                                _ = (entities[row[0]], row[0], row[1], 'None', row[2])
-                                triplet.add(_)
-                    elif row[2] in entity_set:
-                        added = False
-                        if type(row[0]) != str:
-                            continue
-                        else:
-                            e0_sentence = row[0].split(' ')
-                            # check every word in entity2, and add a new row triplet if it is present in entity2
-                            for entity in e0_sentence:
-                                if entity in entity_set:
-                                    _ = (entities[entity], row[0], row[1], entities[row[2]], row[2])
-                                    triplet.add(_)
-                                    added = True
-                            if not added:
-                                _ = ('None', row[0], row[1], entities[row[2]], row[2])
-                                triplet.add(_)
+        try:
+            with open(input_path + "/kg/" + file_name + ".txt-out.csv", newline='') as csvfile:
+                spamreader = csv.reader(csvfile, quotechar='|')
+                for row in spamreader:
+                    if not row:
+                        continue
                     else:
-                        # check every word in entity2, and add a new row triplet if it is present in entity2
-                        _ = ('None', row[0], row[1], 'None', row[2])
-                        triplet.add(_)
+                        row[0] = row[0].strip()
+                        row[2] = row[2].strip()
+                        # if relation entity is present in entity set, only then parse futrther
+                        if row[0] in entity_set:
+                            added = False
+                            if type(row[2]) != str:
+                                continue
+                            else:
+                                e2_sentence = row[2].split(' ')
+                                # check every word in entity2, and add a new row triplet if it is present in entity2
+                                for entity in e2_sentence:
+                                    if entity in entity_set:
+                                        _ = (entities[row[0]], row[0], row[1], entities[entity], row[2])
+                                        triplet.add(_)
+                                        added = True
+                                if not added:
+                                    _ = (entities[row[0]], row[0], row[1], 'None', row[2])
+                                    triplet.add(_)
+                        elif row[2] in entity_set:
+                            added = False
+                            if type(row[0]) != str:
+                                continue
+                            else:
+                                e0_sentence = row[0].split(' ')
+                                # check every word in entity2, and add a new row triplet if it is present in entity2
+                                for entity in e0_sentence:
+                                    if entity in entity_set:
+                                        _ = (entities[entity], row[0], row[1], entities[row[2]], row[2])
+                                        triplet.add(_)
+                                        added = True
+                                if not added:
+                                    _ = ('None', row[0], row[1], entities[row[2]], row[2])
+                                    triplet.add(_)
+                        else:
+                            # check every word in entity2, and add a new row triplet if it is present in entity2
+                            _ = ('None', row[0], row[1], 'None', row[2])
+                            triplet.add(_)
+        except:
+            print(f'ERROR opening file {file_name}.txt-out.csv')
 
         processed_pd = pd.DataFrame(list(triplet), columns=['Type', 'Entity1', 'Relationship', 'Type', 'Entity2'])
         processed_pd.to_csv(input_path + '/result/' + file.split("/")[-1].split(".")[0] + '.csv', encoding='utf-8', index=False)
