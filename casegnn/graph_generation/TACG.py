@@ -18,29 +18,40 @@ import matplotlib.pyplot as plt
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--data", type=str, default='2022', help="coliee2022 or coliee2023")
-parser.add_argument("--dataset", type=str, default='train', help="train or test")
+parser.add_argument("--dataset", type=str, default='coliee_2022', help="coliee_2022, coliee_2023, coliee_2024, or custom")
+parser.add_argument("--data_split", default='train', type=str, help="train or test")
 parser.add_argument("--feature", type=str, default='fact', help="fact or issue")
 args = parser.parse_args()
 
 
 # Load Model
-device = torch.device('cuda')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model_name = 'CSHaitao/SAILER_en_finetune'
 model = AutoModel.from_pretrained(model_name).to(device)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 
-candidate_matrix = torch.load("./PromptCase/promptcase_embedding/"+args.data+"_"+args.dataset+"_fact_issue_cross_embedding.pt")
+path = os.getcwd()
+path_clean = []
+for x in path.split('/'):
+    if x != 'caselink_reproducibility':
+        path_clean.append(x)
+    else:
+        path_clean.append(x)
+        break
+path = '/'.join(path_clean)
 
-with open("./PromptCase/promptcase_embedding/"+args.data+"_"+args.dataset+"_fact_issue_cross_embedding_case_list.json", "rb")as fIn:
+
+candidate_matrix = torch.load(path + '/datasets/' + args.dataset + "/promptcase_embeddings/"  + args.data_split + "_fact_issue_cross_embedding.pt")
+
+with open(path + '/datasets/' + args.dataset + "/promptcase_embeddings/"  + args.data_split + "_fact_issue_cross_embedding_case_list.json", "rb")as fIn:
     candidate_matrix_index = json.load(fIn) 
 
 if args.feature == 'fact':
-    ie_path = "./Information_extraction/coliee"+args.data+"_ie/coliee"+args.data+args.dataset+"_sum/result/"
+    ie_path = path + '/datasets/' + args.dataset + "/information_extraction/" + args.data_split + "_summary/result/"
     embedding_index = 0
 elif args.feature == 'issue':
-    ie_path = "./Information_extraction/coliee"+args.data+"_ie/coliee"+args.data+args.dataset+"_refer/result/"
+    ie_path = path + '/datasets/' + args.dataset + "/information_extraction/" + args.data_split + "_referenced/result/"
     embedding_index = 1
 
 file_list = os.listdir(ie_path)
@@ -57,7 +68,7 @@ with torch.no_grad():
         graph_num += 1
         file_name = file.split('_')[-1].split('.')[0]
         ## case_embedding_format = [fact_embedding, issue_embedding, cross_embedding]
-        promptcase_embedding = candidate_matrix[0][embedding_index][candidate_matrix_index.index(file_name+'.txt')]
+        promptcase_embedding = candidate_matrix[0][embedding_index][candidate_matrix_index.index('named_entity_' + file_name+'.txt')]
         graph_name_list.append(int(file_name))
         list_node1 = []
         list_node2 = []
@@ -161,21 +172,27 @@ with torch.no_grad():
 tensor_graph_name = torch.FloatTensor(graph_name_list)
 graph_labels.update({'name_list': tensor_graph_name})
 
-save_graphs("./Graph_generation/graph/graph_bin_"+args.data+"/bidirec_"+args.data+args.dataset+"_"+args.feature+".bin", graph_list, graph_labels)
+WDIR = path + '/datasets/' + args.dataset + '/graphs/casegnn'
+if os.path.isdir(WDIR):
+    pass
+else:
+    os.makedirs(WDIR)
+
+save_graphs(WDIR + '/' + args.data_split + '_' + args.feature + '_graph.bin', graph_list, graph_labels)
 print('Graph saved.')
 if len(zero_file) != 0:
     print(zero_file)
 
 # test/train synthetic graph construction
-if args.dataset == 'test':
+if args.data_split == 'test':
     graph_label = {"glabel": tensor_graph_name}
-    save_graphs("./Graph_generation/graph/graph_bin_"+args.data+"/bidirec_"+args.data+args.dataset+"_"+args.feature+"_Synthetic.bin", graph_list, graph_label)
-elif args.dataset == 'train':
+    save_graphs(WDIR + '/' + args.data_split + '_' + args.feature + '_graph_synthetic.bin', graph_list, graph_label)
+elif args.data_split == 'train':
     CaseGraph = {}
     labels = tensor_graph_name.tolist()
     for i in range(len(labels)):
         CaseGraph[str(int(labels[i])).zfill(6)] = graph_list[i]
-    with open('./label/task1_train_labels_'+args.data+'.json', 'r') as f:
+    with open(path + '/datasets/' + args.dataset + '/' + args.data_split + '_labels.json', 'r') as f:
         noticed_case_list = json.load(f)
         f.close()
     query_graph_dict = {}
@@ -188,5 +205,5 @@ elif args.dataset == 'train':
         query_graph_label.append(int(k))
     graph_labels = {"glabel": torch.Tensor(query_graph_label)}
 
-    save_graphs("./Graph_generation/graph/graph_bin_"+args.data+"/bidirec_"+args.data+args.dataset+"_"+args.feature+"_Synthetic.bin", query_graph_list, graph_labels)
+    save_graphs(WDIR + '/' + args.data_split + '_' + args.feature + '_graph_synthetic.bin', query_graph_list, graph_labels)
 
