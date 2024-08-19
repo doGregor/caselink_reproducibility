@@ -86,8 +86,7 @@ with torch.no_grad():
                 
         with open(ie_path+file, "r") as f:
             relation_triplets = f.readlines()
-            for line in relation_triplets[:5]:
-                print(line)
+            for line in relation_triplets:
                 if line == 'Type,Entity1,Relationship,Type,Entity2\n':
                     node_num += 1
                     index_dict.update({'promptcase_node': node_num})
