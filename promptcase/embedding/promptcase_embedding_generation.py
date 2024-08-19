@@ -30,9 +30,15 @@ for x in path.split('/'):
         break
 path = '/'.join(path_clean)
 
+# ORIGINAL
+"""
 RDIR_sum = path + '/datasets/' + args.dataset + '/information_extraction/' + args.data_split + '_summary/result/'
 RDIR_refer_sen = path + '/datasets/' + args.dataset + '/information_extraction/' + args.data_split + '_referenced/result/'
-files = os.listdir(RDIR_sum)
+"""
+RDIR_sum = path + '/datasets/' + args.dataset + '/' + args.data_split + '_summary_txt/'
+RDIR_refer_sen = path + '/datasets/' + args.dataset + '/' + args.data_split + '_files_processed_and_referenced/'
+
+files = [f for f in os.listdir(RDIR_sum) if f.endswith('txt')]
 
 
 ## case representation calculation
