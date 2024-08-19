@@ -68,7 +68,12 @@ with torch.no_grad():
         graph_num += 1
         file_name = file.split('_')[-1].split('.')[0]
         ## case_embedding_format = [fact_embedding, issue_embedding, cross_embedding]
-        promptcase_embedding = candidate_matrix[0][embedding_index][candidate_matrix_index.index('named_entity_' + file_name+'.txt')]
+        try:
+            promptcase_embedding = candidate_matrix[0][embedding_index][candidate_matrix_index.index(file_name+'.txt')]
+        except:
+            print('ERROR with file', file_name)
+            graph_num -= 1
+            continue
         graph_name_list.append(int(file_name))
         list_node1 = []
         list_node2 = []
@@ -81,7 +86,8 @@ with torch.no_grad():
                 
         with open(ie_path+file, "r") as f:
             relation_triplets = f.readlines()
-            for line in relation_triplets:
+            for line in relation_triplets[:5]:
+                print(line)
                 if line == 'Type,Entity1,Relationship,Type,Entity2\n':
                     node_num += 1
                     index_dict.update({'promptcase_node': node_num})
@@ -146,7 +152,7 @@ with torch.no_grad():
                         list_node2.append(index_dict['promptcase_node'])
                         Relation_embedding_weights.append(Entity_2_embedding)
                         split_txt_list.append(split_txt)
-
+                
             f.close()
             print(file)
 
