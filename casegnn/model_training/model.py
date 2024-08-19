@@ -56,7 +56,7 @@ class CaseGNN(nn.Module):
 
 def early_stopping(highest_f1score, epoch_f1score, epoch_num, continues_epoch):
     if epoch_f1score <= highest_f1score:
-        if continues_epoch > 10:
+        if continues_epoch > 50:
             return [highest_f1score, True]
         else:
             continues_epoch += 1

@@ -65,7 +65,7 @@ def t_metrics(label_dict, predict_dict, topk):
 
     mrr = RetrievalMRR()
     map = RetrievalMAP()
-    p = RetrievalPrecision(k=topk)
+    p = RetrievalPrecision(top_k=topk)
     ndcg_score = ndcg(torch.tensor(preds_list), torch.tensor(traget_list), indexes=torch.tensor(index_list))
     mrr_score = mrr(torch.tensor(mrr_preds_list), torch.tensor(mrr_traget_list), indexes=torch.tensor(mrr_index_list)) ##mrr@5
     map_score = map(torch.tensor(preds_list), torch.tensor(traget_list), indexes=torch.tensor(index_list)) 

@@ -97,7 +97,7 @@ def main():
         test_sumfact_dataset, sampler=test_sumfact_sampler, batch_size=inference_bs, drop_last=False, collate_fn=collate, shuffle=False)
 
     test_sumfact_pool_dataset = PoolDataset(path + '/datasets/' + args.dataset + '/graphs/casegnn/test_fact_graph.bin')
-    test_referissue_pool_dataset = PoolDataset(path + '/datasets/' + args.dataset + '/graphs/casegnn/test_fact_graph.bin')
+    test_referissue_pool_dataset = PoolDataset(path + '/datasets/' + args.dataset + '/graphs/casegnn/test_issue_graph.bin') # original: '/graphs/casegnn/test_fact_graph.bin'
 
     ## load train label
     train_labels = {}
@@ -108,17 +108,18 @@ def main():
     bm25_hard_neg_dict = {}
     with open(path + '/datasets/' + args.dataset + '/hard_neg_top50_train.json', 'r')as file:
         for line in file.readlines():
+            line = line.replace("\'", "\"")
             dic = json.loads(line)
             bm25_hard_neg_dict.update(dic)
         file.close() 
 
     # ## load test label
     test_labels = {}
-    with open(path + '/datasets/' + args.dataset + 'test_labels.json', 'r')as f:
+    with open(path + '/datasets/' + args.dataset + '/test_labels.json', 'r')as f:
         test_labels = json.load(f)
         f.close()    
 
-    yf_path = path + '/datasets/' + args.dataset + 'test_candidate_with_yearfilter.json' 
+    yf_path = path + '/datasets/' + args.dataset + '/test_candidate_with_yearfilter.json' 
 
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
@@ -128,9 +129,9 @@ def main():
     con_epoch_num = 0
     for epoch in tqdm(range(args.epoch)):
         print('Epoch:', epoch)
-        forward(args.data, model, device, writer, train_dataloader, train_sumfact_pool_dataset, train_referissue_pool_dataset, train_labels, yf_path, epoch, args.temp, bm25_hard_neg_dict, args.hard_neg, args.hard_neg_num, train_flag=True, embedding_saving=False, optimizer=optimizer, dataset_name=args.dataset)
+        forward(args.dataset, model, device, writer, train_dataloader, train_sumfact_pool_dataset, train_referissue_pool_dataset, train_labels, yf_path, epoch, args.temp, bm25_hard_neg_dict, args.hard_neg, args.hard_neg_num, train_flag=True, embedding_saving=False, optimizer=optimizer, training_setup=training_setup)
         with torch.no_grad():                      
-            ndcg_score_yf = forward(args.data, model, device, writer, test_dataloader, test_sumfact_pool_dataset, test_referissue_pool_dataset, test_labels, yf_path, epoch, args.temp, bm25_hard_neg_dict, args.hard_neg, args.hard_neg_num, train_flag=False, embedding_saving=False, optimizer=optimizer, , dataset_name=args.dataset)
+            ndcg_score_yf = forward(args.dataset, model, device, writer, test_dataloader, test_sumfact_pool_dataset, test_referissue_pool_dataset, test_labels, yf_path, epoch, args.temp, bm25_hard_neg_dict, args.hard_neg, args.hard_neg_num, train_flag=False, embedding_saving=False, optimizer=optimizer, training_setup=training_setup)
 
         stop_para = early_stopping(highest_ndcg, ndcg_score_yf, epoch, con_epoch_num)
         highest_ndcg = stop_para[0]
@@ -139,8 +140,8 @@ def main():
         else:
             con_epoch_num = stop_para[2]
     ##CaseGNN Embedding Saving
-    forward(args.data, model, device, writer, train_dataloader, train_sumfact_pool_dataset, train_referissue_pool_dataset, train_labels, yf_path, epoch, args.temp, bm25_hard_neg_dict, args.hard_neg, args.hard_neg_num, train_flag=True, embedding_saving=True, optimizer=optimizer, dataset_name=args.dataset)
-    forward(args.data, model, device, writer, test_dataloader, test_sumfact_pool_dataset, test_referissue_pool_dataset, test_labels, yf_path, epoch, args.temp, bm25_hard_neg_dict, args.hard_neg, args.hard_neg_num, train_flag=False, embedding_saving=True, optimizer=optimizer, dataset_name=args.dataset)
+    forward(args.dataset, model, device, writer, train_dataloader, train_sumfact_pool_dataset, train_referissue_pool_dataset, train_labels, yf_path, epoch, args.temp, bm25_hard_neg_dict, args.hard_neg, args.hard_neg_num, train_flag=True, embedding_saving=True, optimizer=optimizer, training_setup=training_setup)
+    forward(args.dataset, model, device, writer, test_dataloader, test_sumfact_pool_dataset, test_referissue_pool_dataset, test_labels, yf_path, epoch, args.temp, bm25_hard_neg_dict, args.hard_neg, args.hard_neg_num, train_flag=False, embedding_saving=True, optimizer=optimizer, training_setup=training_setup)
 
 if __name__ == '__main__':
     main()
