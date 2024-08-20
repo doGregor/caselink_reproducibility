@@ -298,6 +298,47 @@ def forward(data, model, device, writer, dataloader, sumfact_pool_dataset, refer
         model.eval()
         with torch.no_grad():
             label_list = []
+            num = 0
+            for batched_graph, labels in tqdm(dataloader):
+                batch_size = len(labels)
+                break
+            for i in range(0, len(sumfact_pool_dataset.label_list), batch_size):
+                num += 1
+                if i + batch_size < len(sumfact_pool_dataset.label_list):
+                    labels_p_batch = sumfact_pool_dataset.label_list[i:i+batch_size]
+                else:
+                    labels_p_batch = sumfact_pool_dataset.label_list[i:]
+                
+                labels_p_batch = [str(int(x)).zfill(6) for x in labels_p_batch]
+                label_list.append(labels_p_batch)
+                    
+                sumfact_graph_list = []
+                for l in labels_p_batch:
+                    sumfact_graph = sumfact_pool_dataset.graphs[l]
+                    sumfact_graph_list.append(sumfact_graph)
+                sumfact_graph_batch = dgl.batch(sumfact_graph_list)
+                sumfact_graph = model(sumfact_graph_batch.to(device), sumfact_graph_batch.ndata['w'].to(device), sumfact_graph_batch.edata['w'].to(device))   
+                if num == 1:
+                    sumfact_graph_rep = sumfact_graph
+                else:
+                    sumfact_graph_rep = torch.cat((sumfact_graph_rep, sumfact_graph), dim=0)
+                    
+                referissue_graph_list = []
+                for l in labels_p_batch:
+                    referissue_graph = referissue_pool_dataset.graphs[l]
+                    referissue_graph_list.append(referissue_graph)
+                referissue_graph_batch = dgl.batch(referissue_graph_list)
+                referissue_graph = model(referissue_graph_batch.to(device), referissue_graph_batch.ndata['w'].to(device), referissue_graph_batch.edata['w'].to(device))   
+                if num == 1:
+                    referissue_graph_rep = referissue_graph
+                else:
+                    referissue_graph_rep = torch.cat((referissue_graph_rep, referissue_graph), dim=0)
+                    
+            label_list = [y for x in label_list for y in x]
+
+            
+            """ ORIGINAL
+            label_list = []
             num =0
             sumfact_graph_list = []
             for batched_graph, labels in tqdm(dataloader):
@@ -323,7 +364,9 @@ def forward(data, model, device, writer, dataloader, sumfact_pool_dataset, refer
                 else:
                     referissue_graph_rep = torch.cat((referissue_graph_rep, referissue_graph), dim=0)
             label_list = [y for x in label_list for y in x]
-        
+            """
+            
+            
         if train_flag:
             dataset = 'train'
         else:
