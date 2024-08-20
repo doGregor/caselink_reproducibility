@@ -20,8 +20,10 @@ args = parser.parse_args()
 model_name = 'CSHaitao/SAILER_en_finetune'
 model = AutoModel.from_pretrained(model_name)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
 
-##Load bm25 matrix
+
 path = os.getcwd()
 path_clean = []
 for x in path.split('/'):
@@ -32,6 +34,8 @@ for x in path.split('/'):
         break
 path = '/'.join(path_clean)
 
+
+##Load bm25 matrix
 with open(path + '/datasets/' + args.dataset + '/bm25/' + args.dataset + '_' + args.data_split + '_BM25_score_matrix_case_sequence.json', 'rb') as fIn:
     bm25_score_matrix_case_name = json.load(fIn)
 with open(path + '/datasets/' + args.dataset + '/bm25/' + args.dataset + '_' + args.data_split + '_BM25_score_matrix.pt', "rb") as fIn:
@@ -54,9 +58,9 @@ for i in range(len(bm25_score_matrix_norm_list)):
 bm25_score_matrix_binary = torch.stack(bm25_score_list)
 
 ## charge matrix
-dataset_path = './Graph_generation/COLIEE'+args.data+'/task1_'+args.dataset+'_files_'+args.data+'/'
-with open('./Graph_generation/federal_charges_coliee.txt', 'r') as f:
-    issues  = f.readlines()
+dataset_path = path + '/datasets/' + args.dataset + '/' + args.data_split + '_files/'
+with open(path + '/caselink/graph_generation/federal_charges_coliee.txt', 'r') as f:
+    issues = f.readlines()
     f.close()
 issue_name_list = []
 encode_issue_name_list = []
@@ -70,10 +74,11 @@ for issue in issues:
         encode_issue_name_list.append(issue_1)
 
 charge_name_tokenized_id = tokenizer(encode_issue_name_list, return_tensors="pt", padding=True, truncation=True, max_length=512)
+charge_name_tokenized_id.to(device)
 charge_name_embedding = model(**charge_name_tokenized_id)[0][:,0,:]
 charge_name_embedding_norm = charge_name_embedding / charge_name_embedding.norm(dim=1)[:, None]
 charge_matrix = torch.mm(charge_name_embedding_norm, charge_name_embedding_norm.T)
-binary_charge_matrix = (charge_matrix>args.charge_threshold).float()
+binary_charge_matrix = (charge_matrix>args.charge_threshold).float().to(device)
 
 ##charge matrix construction
 num = 0
@@ -126,20 +131,20 @@ for file in tqdm(bm25_score_matrix_case_name):
 print('Empty charge case: '+str(empty_charge_case_num))  
 
 binary_edge_matrix_1 = torch.cat((bm25_score_matrix_binary, binary_case_charge_tensor), 0)  ##concat (bm25_score_matrix[case_num, case_num], case_charge_matrix[charge_num, case_num]) --> [case_num+charge_num, case_num]
-binary_edge_matrix_2 = torch.cat((binary_case_charge_tensor.T, binary_charge_matrix), 0)  ##concat (case_charge_matrix[charge_num, case_num], charge_matrix[charge_num, charge_num]) --> [case_num+charge_num, charge_num]
-edge_adjacency_matrix = torch.cat((binary_edge_matrix_1, binary_edge_matrix_2), 1)
+binary_edge_matrix_2 = torch.cat((binary_case_charge_tensor.T.to(device), binary_charge_matrix), 0)  ##concat (case_charge_matrix[charge_num, case_num], charge_matrix[charge_num, charge_num]) --> [case_num+charge_num, charge_num]
+edge_adjacency_matrix = torch.cat((binary_edge_matrix_1.to(device), binary_edge_matrix_2.to(device)), 1)
 
 weight_edge_matrix_1 = torch.cat((bm25_score_matrix_norm, binary_case_charge_tensor), 0) ##concat (bm25_score_matrix[case_num, case_num], case_charge_matrix[charge_num, case_num]) --> [case_num+charge_num, case_num]
-weight_edge_matrix_2 = torch.cat((binary_case_charge_tensor.T, binary_charge_matrix), 0)  ##concat (case_charge_matrix[charge_num, case_num], charge_matrix[charge_num, charge_num]) --> [case_num+charge_num, charge_num]
-edge_weight_matrix = torch.cat((weight_edge_matrix_1, weight_edge_matrix_2), 1)
+weight_edge_matrix_2 = torch.cat((binary_case_charge_tensor.T.to(device), binary_charge_matrix), 0)  ##concat (case_charge_matrix[charge_num, case_num], charge_matrix[charge_num, charge_num]) --> [case_num+charge_num, charge_num]
+edge_weight_matrix = torch.cat((weight_edge_matrix_1.to(device), weight_edge_matrix_2.to(device)), 1)
 
 # ##Load node embedding  
-with open(path+'/Graph_generation/casegnn_embedding/coliee'+args.data+'_'+args.dataset+'_casegnn_embedding.pt', "rb") as fIn:
+with open(path + '/datasets/' + args.dataset + '/casegnn_embeddings/' + args.data_split + '_casegnn_embedding.pt', "rb") as fIn:
     case_embedding_matrix =torch.load(fIn) 
 case_embedding_matrix = case_embedding_matrix.to('cpu')
-with open(path+'/Graph_generation/casegnn_embedding/coliee'+args.data+'_'+args.dataset+'_casegnn_embedding_case_name_list.json', 'rb') as fIn:
+with open(path + '/datasets/' + args.dataset + '/casegnn_embeddings/' + args.data_split + '_casegnn_embedding_case_name_list.json', 'rb') as fIn:
     case_embedding_matrix_case_name_list = json.load(fIn)
-
+    
 node_embedding = []
 for i in range(len(bm25_score_matrix_case_name)):
     case_name = bm25_score_matrix_case_name[i]
@@ -150,16 +155,16 @@ for i in range(len(bm25_score_matrix_case_name)):
 case_node_embedding_matrix = torch.stack(node_embedding).to('cpu')
 
 charge_node_embedding = torch.cat((charge_name_embedding,charge_name_embedding), 1)
-node_embedding = torch.cat((case_node_embedding_matrix, charge_node_embedding), 0)
+node_embedding = torch.cat((case_node_embedding_matrix.to(device), charge_node_embedding.to(device)), 0)
 
 top10_edge_weight_matrix = edge_adjacency_matrix.mul(edge_weight_matrix)
 
 weight_ajacency = (top10_edge_weight_matrix + top10_edge_weight_matrix.T) / (edge_adjacency_matrix + edge_adjacency_matrix.T)
 weight_ajacency = weight_ajacency.nan_to_num()
 
-src, dst = np.nonzero(weight_ajacency.numpy())
+src, dst = np.nonzero(weight_ajacency.cpu().numpy())
 g = dgl.graph((src, dst))
-g.ndata['feat'] = node_embedding
+g.ndata['feat'] = node_embedding.cpu()
 
 num = 0
 edge_weight = []
@@ -169,15 +174,22 @@ for i in range(len(src)):
     else:
         num += 1
         edge_weight.append(weight_ajacency[src[i],dst[i]])
-g.edata['feat'] = torch.stack(edge_weight)
+g.edata['feat'] = torch.stack(edge_weight).cpu()
 
 graph_labels = {}
 node_name = [int(i.split('.')[0])  for i in bm25_score_matrix_case_name]
 tensor_node_name = torch.FloatTensor(node_name)
 graph_labels.update({'case_name_list': tensor_node_name})
-save_graphs(path+"/Graph_generation/graph/graph_bin_"+args.data+"/bidirec_"+args.data+args.dataset+"_bm25top"+str(args.topk_neighbor)+"_charge_thres"+str(args.charge_threshold)+".bin", g, graph_labels)
 
-with open('./label/task1_'+args.dataset+'_labels_'+args.data+'.json', 'r') as f:
+WDIR = path + '/datasets/' + args.dataset + '/graphs/caselink'
+if os.path.isdir(WDIR):
+    pass
+else:
+    os.makedirs(WDIR)
+
+save_graphs(WDIR + '/' + args.data_split + '_bm25top' + str(args.topk_neighbor) + '_charge_thres' + str(args.charge_threshold) + '.bin', g, graph_labels)
+
+with open(path + '/datasets/' + args.dataset + '/' + args.data_split + '_labels.json', 'r') as f:
     noticed_case_list = json.load(f)
     f.close()
 
@@ -194,5 +206,5 @@ for key, value in noticed_case_list.items():
     query_graph_label.append(int(k))
 graph_labels = {"case_name_list": torch.FloatTensor(query_graph_label)}
 
-torch.save([query_graph_list, graph_labels, index_list], path+"/Graph_generation/graph/graph_bin_"+args.data+"/bidirec_"+args.data+args.dataset+"_bm25top"+str(args.topk_neighbor)+"_charge_thres"+str(args.charge_threshold)+'.pt')
+torch.save([query_graph_list, graph_labels, index_list], WDIR + '/' + args.data_split + '_graph_bin_bm25top' + str(args.topk_neighbor) + '_charge_thres' + str(args.charge_threshold) + '.pt')
 print('CaseLink graph construction finished.')
