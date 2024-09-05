@@ -32,6 +32,7 @@ parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFo
 parser.add_argument("--dataset", type=str, default='coliee_2022', help="coliee_2022, coliee_2023, coliee_2024, or custom")
 parser.add_argument("--stage_num", type=int, default='1', help="1, 2")
 parser.add_argument('--model', type=str, default='SAILER')
+parser.add_argument('--gpu', type=str, default='0')
 args = parser.parse_args()
 print(args)
 
@@ -72,7 +73,7 @@ def micro_prec_datefilter(query_case, true_list, pred_list, k):
 model_name = 'CSHaitao/SAILER_en_finetune'
 model = AutoModel.from_pretrained(model_name)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:' + args.gpu if torch.cuda.is_available() else 'cpu')
 model.to(device)
 
 RDIR_sum = get_path() + '/datasets/' + args.dataset + '/test_summary_txt'

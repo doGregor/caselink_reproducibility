@@ -65,11 +65,11 @@ def t_metrics(dataset, predict_path):
             rank -= 0.05
 
 
-    ndcg = RetrievalNormalizedDCG(k=5)
+    ndcg = RetrievalNormalizedDCG(top_k=5)
 
     mrr = RetrievalMRR()
     map = RetrievalMAP()
-    p = RetrievalPrecision(k=5)
+    p = RetrievalPrecision(top_k=5)
     ndcg_score = ndcg(torch.tensor(preds_list), torch.tensor(traget_list), indexes=torch.tensor(index_list))
     mrr_score = mrr(torch.tensor(mrr_preds_list), torch.tensor(mrr_traget_list), indexes=torch.tensor(mrr_index_list)) ##mrr@5
     map_score = map(torch.tensor(preds_list), torch.tensor(traget_list), indexes=torch.tensor(index_list)) 
