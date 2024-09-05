@@ -21,11 +21,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", type=str, default='coliee_2022', help="coliee_2022, coliee_2023, coliee_2024, or custom")
 parser.add_argument("--data_split", default='train', type=str, help="train or test")
 parser.add_argument("--feature", type=str, default='fact', help="fact or issue")
+parser.add_argument("--gpu", type=str, default='0')
 args = parser.parse_args()
 
 
 # Load Model
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:' + args.gpu if torch.cuda.is_available() else 'cpu')
 model_name = 'CSHaitao/SAILER_en_finetune'
 model = AutoModel.from_pretrained(model_name).to(device)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
