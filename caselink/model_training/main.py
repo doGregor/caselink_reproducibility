@@ -8,7 +8,7 @@ from dgl.dataloading import GraphDataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 import torch
 from dgl.data.utils import load_graphs
-from DATASET.data_load import SyntheticDataset, collate
+from data_load import SyntheticDataset, collate
 from CaseLink_model import CaseLink, early_stopping
 
 from train import forward
@@ -40,7 +40,8 @@ parser.add_argument("--charge_threshold", type=float, default=0.9, help="0.85 0.
 parser.add_argument("--lamb", type=float, default=0.001, help="lambda of l_reg") 
 
 ## other parameters
-parser.add_argument("--data", type=str, default='2022', help="coliee2022 or coliee2023")
+parser.add_argument("--dataset", type=str, default='coliee_2022', help="coliee_2022, coliee_2023, coliee_2024, or custom")
+parser.add_argument("--gpu", type=str, default='0', help="CUDA GPU position")
 
 args = parser.parse_args()
 
@@ -49,15 +50,31 @@ logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(filename)s[line:%(lineno)d] %(message)s')
 logging.warning(args)
 
-def main():   
-    log_dir = './CaseLink_experiments/CaseLink_coliee'+args.data+'_lamb'+str(args.lamb)+'_neibtop'+str(args.topk_neighbor)+"_charthre"+str(args.charge_threshold)+'_'+str(args.layer_num)+'layer_bs'+str(args.batch_size)+'_dp'+str(args.dropout)+'_lr'+str(args.lr)+'_wd'+str(args.wd)+'_t'+str(args.temp)+'_headnum'+str(args.num_heads)+'_hardneg'+str(args.hard_neg_num)+'_ranneg'+str(args.ran_neg_num)+'_'+time.strftime("%m%d-%H%M%S")
+
+def get_path():
+    path = os.getcwd()
+    path_clean = []
+    for x in path.split('/'):
+        if x != 'caselink_reproducibility':
+            path_clean.append(x)
+        else:
+            path_clean.append(x)
+            break
+    path = '/'.join(path_clean)
+    return path
+
+
+def main():
+    log_dir = get_path() + '/datasets/' + args.dataset + '/caselink_experiments/'
+    training_setup = 'lamb' + str(args.lamb) + '_neibtop' + str(args.topk_neighbor) + "_charthre" + str(args.charge_threshold) + '_' + str(args.layer_num) + 'layer_bs' + str(args.batch_size) + '_dp' + str(args.dropout) + '_lr' + str(args.lr) + '_wd'+str(args.wd) + '_t' + str(args.temp) + '_headnum' + str(args.num_heads) + '_hardneg' + str(args.hard_neg_num) + '_ranneg' + str(args.ran_neg_num) + '_' + time.strftime("%m%d-%H%M%S")
+    log_dir += training_setup
 
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     writer = SummaryWriter(log_dir)
     print(log_dir)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:' + args.gpu if torch.cuda.is_available() else 'cpu')
 
     ## model initialization
     model = CaseLink(args.in_dim, args.h_dim, args.out_dim, dropout=args.dropout, layer_num=args.layer_num, num_heads=args.num_heads)
@@ -66,33 +83,34 @@ def main():
 
     ## Load train label
     train_labels = {}
-    with open('./label/task1_train_labels_'+args.data+'.json', 'r')as f:
+    with open(get_path() + '/datasets/' + args.dataset + '/train_labels.json', 'r')as f:
         train_labels = json.load(f)
         f.close() 
 
     bm25_hard_neg_dict = {}
-    with open('./label/hard_neg_top50_train_'+args.data+'.json', 'r')as file:
+    with open(get_path() + '/datasets/' + args.dataset + '/hard_neg_top50_train.json', 'r')as file:
         for line in file.readlines():
+            line = line.replace("\'", "\"")
             dic = json.loads(line)
             bm25_hard_neg_dict.update(dic)
         file.close() 
 
     ## Load test label
     test_labels = {}
-    with open('./label/task1_test_labels_'+args.data+'.json', 'r')as f:
+    with open(get_path() + '/datasets/' + args.dataset + '/test_labels.json', 'r')as f:
         test_labels = json.load(f)
         f.close()    
 
-    yf_path = './label/test_'+args.data+'_candidate_with_yearfilter.json' 
+    yf_path = get_path() + '/datasets/' + args.dataset + '/test_candidate_with_yearfilter.json'
 
     ## Load datasets
     ## Train dataset
-    train_graph_and_label = load_graphs("./Graph_generation/graph/graph_bin_"+args.data+"/bidirec_"+args.data+"train_bm25top"+str(args.topk_neighbor)+"_charge_thres"+str(args.charge_threshold)+".bin")
+    train_graph_and_label = load_graphs(get_path() + '/datasets/' + args.dataset + '/graphs/caselink/train_bm25top' + str(args.topk_neighbor) + '_charge_thres' + str(args.charge_threshold) + '.bin')
     train_graphs = train_graph_and_label[0]
     graph_labels = train_graph_and_label[1]['case_name_list'].tolist()
     train_label_list = [str(int(x)).zfill(6) for x in graph_labels]
     
-    train_dataset = SyntheticDataset(file_path="./Graph_generation/graph/graph_bin_"+args.data+"/bidirec_"+args.data+"train_bm25top"+str(args.topk_neighbor)+"_charge_thres"+str(args.charge_threshold)+".pt", label_dict=train_labels, train_pool=train_label_list, hard_neg_num=args.hard_neg_num, hard_bm25_dict=bm25_hard_neg_dict)
+    train_dataset = SyntheticDataset(file_path=get_path() + '/datasets/' + args.dataset + '/graphs/caselink/train_graph_bin_bm25top' + str(args.topk_neighbor) + '_charge_thres' + str(args.charge_threshold) + '.pt', label_dict=train_labels, train_pool=train_label_list, hard_neg_num=args.hard_neg_num, hard_bm25_dict=bm25_hard_neg_dict)
     train_graph = train_dataset.graph_list
     train_label = train_dataset.label_list
     train_sampler = SubsetRandomSampler(torch.arange(len(train_graph)))
@@ -106,7 +124,7 @@ def main():
     
     ## Test dataset 
     test_dataloader = None       
-    test_graph_and_label = load_graphs("./Graph_generation/graph/graph_bin_"+args.data+"/bidirec_"+args.data+"test_bm25top"+str(args.topk_neighbor)+"_charge_thres"+str(args.charge_threshold)+".bin")
+    test_graph_and_label = load_graphs(get_path() + '/datasets/' + args.dataset + '/graphs/caselink/test_bm25top' + str(args.topk_neighbor) + '_charge_thres' + str(args.charge_threshold) + '.bin')
     test_graphs = test_graph_and_label[0]
     test_graph_labels = test_graph_and_label[1]['case_name_list'].tolist()
     test_label_list = [str(int(x)).zfill(6) for x in test_graph_labels]    
@@ -136,9 +154,9 @@ def main():
     con_epoch_num = 0    
     for epoch in tqdm(range(args.epoch)):
         print('Epoch:', epoch)
-        forward(model, device, writer, train_dataloader, train_graph_and_label, train_labels, train_candidate_list, yf_path, epoch, args.batch_size, args.temp, args.lamb, args.hard_neg_num, train_flag=True, test_mask=None, test_label_list=None, test_query_list=None, test_query_index_list=None, optimizer=optimizer)
+        forward(args.dataset, model, device, writer, train_dataloader, train_graph_and_label, train_labels, train_candidate_list, yf_path, epoch, args.batch_size, args.temp, args.lamb, args.hard_neg_num, train_flag=True, test_mask=None, test_label_list=None, test_query_list=None, test_query_index_list=None, optimizer=optimizer, training_setup=training_setup)
         with torch.no_grad():            
-            ndcg_score_yf = forward(model, device, writer, test_dataloader, test_graph_and_label, test_labels, train_candidate_list, yf_path, epoch, args.batch_size, args.temp, args.lamb, args.hard_neg_num, train_flag=False, test_mask=test_mask, test_label_list=test_label_list, test_query_list=test_query_list, test_query_index_list=test_query_index_list, optimizer=optimizer)
+            ndcg_score_yf = forward(args.dataset, model, device, writer, test_dataloader, test_graph_and_label, test_labels, train_candidate_list, yf_path, epoch, args.batch_size, args.temp, args.lamb, args.hard_neg_num, train_flag=False, test_mask=test_mask, test_label_list=test_label_list, test_query_list=test_query_list, test_query_index_list=test_query_index_list, optimizer=optimizer, training_setup=training_setup)
 
         ## Early stopping
         stop_para = early_stopping(highest_ndcg, ndcg_score_yf, epoch, con_epoch_num)

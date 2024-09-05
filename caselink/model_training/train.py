@@ -4,8 +4,23 @@ from tqdm import tqdm
 import random
 from torch_metrics import t_metrics, metric, yf_metric, rank
 from CaseLink_model import RMSELoss, early_stopping
+import os
 
-def forward(model, device, writer, dataloader, data, label_dict, train_candidate_list, yf_path, epoch, batch_size, temp, lamb, hard_neg_num, train_flag, test_mask, test_label_list, test_query_list, test_query_index_list, optimizer=None):
+
+def get_path():
+    path = os.getcwd()
+    path_clean = []
+    for x in path.split('/'):
+        if x != 'caselink_reproducibility':
+            path_clean.append(x)
+        else:
+            path_clean.append(x)
+            break
+    path = '/'.join(path_clean)
+    return path
+
+
+def forward(dataset, model, device, writer, dataloader, data, label_dict, train_candidate_list, yf_path, epoch, batch_size, temp, lamb, hard_neg_num, train_flag, test_mask, test_label_list, test_query_list, test_query_index_list, optimizer=None,  training_setup='tmp'):
     if train_flag:
         ## Training
         model.train()
@@ -178,6 +193,47 @@ def forward(model, device, writer, dataloader, data, label_dict, train_candidate
             writer.add_scalar("One stage yf/NDCG@5 yf", ndcg_score_yf, epoch)
             writer.add_scalar("One stage yf/MRR yf", mrr_score_yf, epoch)
             writer.add_scalar("One stage yf/MAP yf", map_score_yf, epoch)
+            
+            predict_path = get_path() + '/datasets/' + dataset + '/caselink_experiments/'
+            with open(predict_path + training_setup + '.txt', "a") as fOut:
+                fOut.write(10*'*' + f' {epoch} ' + 10*'*' + '\n')
+                fOut.write('\n')
+                
+                fOut.write("Correct Predictions: "+str(correct_pred)+'\n')
+                fOut.write("Retrived Cases: "+str(retri_cases)+'\n')
+                fOut.write("Relevant Cases: "+str(relevant_cases)+'\n')
+
+                fOut.write("Micro Precision: "+str(Micro_pre)+'\n')
+                fOut.write("Micro Recall: "+str(Micro_recall)+'\n')
+                fOut.write("Micro F1: "+str(Micro_F)+'\n')
+
+                fOut.write("Macro Precision: "+str(macro_pre)+'\n')
+                fOut.write("Macro Recall: "+str(macro_recall)+'\n')
+                fOut.write("Macro F1: "+str(macro_F)+'\n')
+
+                fOut.write("NDCG@5: "+str(ndcg_score)+'\n')
+                fOut.write("MRR@5: "+str(mrr_score)+'\n')
+                fOut.write("MAP: "+str(map_score)+'\n')
+
+                fOut.write("Correct Predictions yf: "+str(correct_pred_yf)+'\n')
+                fOut.write("Retrived Cases yf: "+str(retri_cases_yf)+'\n')
+                fOut.write("Relevant Cases yf: "+str(relevant_cases_yf)+'\n')
+
+                fOut.write("Micro Precision yf: "+str(Micro_pre_yf)+'\n')
+                fOut.write("Micro Recall yf: "+str(Micro_recall_yf)+'\n')
+                fOut.write("Micro F1 yf: "+str(Micro_F_yf)+'\n')
+
+                fOut.write("Macro Precision yf: "+str(macro_pre_yf)+'\n')
+                fOut.write("Macro Recall yf: "+str(macro_recall_yf)+'\n')
+                fOut.write("Macro F1 yf: "+str(macro_F_yf)+'\n')
+
+                fOut.write("NDCG@5 yf: "+str(ndcg_score_yf)+'\n')
+                fOut.write("MRR@5 yf: "+str(mrr_score_yf)+'\n')
+                fOut.write("MAP yf: "+str(map_score_yf)+'\n')
+
+                fOut.write('\n')
+                
+                fOut.close()
         
         return ndcg_score_yf
         
