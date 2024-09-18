@@ -1,0 +1,219 @@
+import numpy as np
+import torch
+import json
+from tqdm import tqdm
+import os
+from transformers import AutoModel, AutoTokenizer
+import argparse
+from torch_geometric.data import HeteroData
+from torch_geometric.utils import dense_to_sparse
+import torch_geometric.transforms as T
+
+
+parser = argparse.ArgumentParser()
+## model parameters
+parser.add_argument("--dataset", type=str, default='coliee_2022', help="coliee_2022, coliee_2023, coliee_2024, or custom")
+parser.add_argument("--data_split", default='train', type=str, help="train or test")
+parser.add_argument("--topk_neighbor", default=5, type=int, help="5 10 20")
+parser.add_argument("--charge_threshold", default=0.9, type=float, help="0.85 0.9 0.95") 
+args = parser.parse_args()
+
+model_name = 'CSHaitao/SAILER_en_finetune'
+model = AutoModel.from_pretrained(model_name)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
+
+
+path = os.getcwd()
+path_clean = []
+for x in path.split('/'):
+    if x != 'caselink_reproducibility':
+        path_clean.append(x)
+    else:
+        path_clean.append(x)
+        break
+path = '/'.join(path_clean)
+
+
+##Load bm25 matrix
+with open(path + '/datasets/' + args.dataset + '/bm25/' + args.dataset + '_' + args.data_split + '_BM25_score_matrix_case_sequence.json', 'rb') as fIn:
+    bm25_score_matrix_case_name = json.load(fIn)
+with open(path + '/datasets/' + args.dataset + '/bm25/' + args.dataset + '_' + args.data_split + '_BM25_score_matrix.pt', "rb") as fIn:
+    bm25_score_matrix =torch.load(fIn) 
+bm25_score_matrix = bm25_score_matrix.to('cpu')
+
+##bm25
+bm25_score_tensor = bm25_score_matrix.tolist()
+bm25_score_matrix_norm_list = []
+for i in tqdm(range(len(bm25_score_tensor))):
+    bm25_score_tensor_norm = torch.tensor(bm25_score_tensor[i])/bm25_score_tensor[i][i]    
+    bm25_score_matrix_norm_list.append(bm25_score_tensor_norm)
+bm25_score_matrix_norm = torch.stack(bm25_score_matrix_norm_list)
+bm25_score_norm_top10_tensor = torch.topk(bm25_score_matrix_norm, args.topk_neighbor, dim=1)[1]
+bm25_score_list = []
+for i in range(len(bm25_score_matrix_norm_list)):
+    bm25_score_matrix_norm_list[i][bm25_score_norm_top10_tensor[i]] = 1
+    tensor = (bm25_score_matrix_norm_list[i]>=1).float() 
+    bm25_score_list.append(tensor)
+bm25_score_matrix_binary = torch.stack(bm25_score_list)
+
+## charge matrix
+dataset_path = path + '/datasets/' + args.dataset + '/' + args.data_split + '_files/'
+with open(path + '/caselink/graph_generation/federal_charges_coliee.txt', 'r') as f:
+    issues = f.readlines()
+    f.close()
+issue_name_list = []
+encode_issue_name_list = []
+for issue in issues:
+    issue_1 = issue.split('\n')[0]
+    issue_name_list.append(issue_1)
+    if ',' in issue_1:
+        issue_name = issue_1.split(',')[0]
+        encode_issue_name_list.append(issue_name)
+    else:
+        encode_issue_name_list.append(issue_1)
+
+charge_name_tokenized_id = tokenizer(encode_issue_name_list, return_tensors="pt", padding=True, truncation=True, max_length=512)
+charge_name_tokenized_id.to(device)
+charge_name_embedding = model(**charge_name_tokenized_id)[0][:,0,:]
+charge_name_embedding_norm = charge_name_embedding / charge_name_embedding.norm(dim=1)[:, None]
+charge_matrix = torch.mm(charge_name_embedding_norm, charge_name_embedding_norm.T)
+binary_charge_matrix = (charge_matrix>args.charge_threshold).float().to(device)
+
+##charge matrix construction
+num = 0
+empty_charge_case_num = 0
+case_charge_dict = {}
+max_charge_num = 0
+for file in tqdm(bm25_score_matrix_case_name):
+    num += 1
+    case_charge_list = []      
+    with open (dataset_path+file, 'r') as f:
+        text = f.read()
+        f.close()
+    text = text.replace('[', '')
+    text = text.replace(']', '')
+    text = text.replace('"', '')
+    text = text.replace(',', '')
+    text = text.replace('\\', '')
+    text = text.replace('\n', ' ')
+    for i in issue_name_list:
+        if ',' in i:
+            multi_charge_list = i.split(',')
+            multi_charge_list_1 = []
+            for x in multi_charge_list:
+                if x in text:
+                    case_charge_list.append(1)
+                    multi_charge_list_1.append(x)
+                    break
+                elif x.lower() in text:
+                    case_charge_list.append(1)
+                    multi_charge_list_1.append(x)
+                    break
+            if multi_charge_list_1 == []:
+                case_charge_list.append(0)
+        else:
+            if i in text:
+                case_charge_list.append(1)
+            elif i.lower() in text:
+                case_charge_list.append(1)
+            else:
+                case_charge_list.append(0)
+    if 1 not in case_charge_list:
+        empty_charge_case_num += 1
+        print(file)
+
+    if num == 1:
+        binary_case_charge_tensor = torch.unsqueeze(torch.FloatTensor(case_charge_list), 1)
+    else:
+        tensor_0 = torch.unsqueeze(torch.FloatTensor(case_charge_list), 1)
+        binary_case_charge_tensor = torch.cat((binary_case_charge_tensor, tensor_0), 1) 
+print('Empty charge case: '+str(empty_charge_case_num))  
+
+
+### create graph
+graph = HeteroData()
+
+
+### create edge_index
+
+top10_edge_weight_matrix_bm25 = bm25_score_matrix_binary.mul(bm25_score_matrix_norm)
+binary_ajacency_bm25 = (top10_edge_weight_matrix_bm25 + top10_edge_weight_matrix_bm25.T) / (bm25_score_matrix_binary + bm25_score_matrix_binary.T)
+binary_ajacency_bm25 = binary_ajacency_bm25.nan_to_num()
+adj, mask = dense_to_sparse(binary_ajacency_bm25)
+graph['case', 'to', 'case']['edge_index'] = adj
+
+
+adj, mask = dense_to_sparse(binary_case_charge_tensor)
+graph['charge', 'to', 'case']['edge_index'] = adj
+
+
+adj, mask = dense_to_sparse(binary_charge_matrix)
+graph['charge', 'to', 'charge']['edge_index'] = adj
+
+
+# ##Load node embedding  
+with open(path + '/datasets/' + args.dataset + '/casegnn_embeddings/' + args.data_split + '_casegnn_embedding.pt', "rb") as fIn:
+    case_embedding_matrix =torch.load(fIn) 
+case_embedding_matrix = case_embedding_matrix.to('cpu')
+with open(path + '/datasets/' + args.dataset + '/casegnn_embeddings/' + args.data_split + '_casegnn_embedding_case_name_list.json', 'rb') as fIn:
+    case_embedding_matrix_case_name_list = json.load(fIn)
+    
+node_embedding = []
+for i in range(len(bm25_score_matrix_case_name)):
+    case_name = bm25_score_matrix_case_name[i]
+    index = case_embedding_matrix_case_name_list.index(case_name.split('.')[0])
+
+    case_embedding = case_embedding_matrix[index,:]
+    node_embedding.append(case_embedding)
+case_node_embedding_matrix = torch.stack(node_embedding).to('cpu')
+
+
+### assign graph features
+graph['charge']['x'] = charge_name_embedding
+graph['case']['x'] = case_node_embedding_matrix
+
+
+### remove duplicates and make undirected
+graph = T.RemoveDuplicatedEdges()(graph)
+graph = T.ToUndirected(merge=False)(graph)
+
+
+graph_labels = {}
+node_name = [int(i.split('.')[0])  for i in bm25_score_matrix_case_name]
+tensor_node_name = torch.FloatTensor(node_name)
+graph_labels.update({'case_name_list': tensor_node_name})
+graph['case']['name_list'] = graph_labels['case_name_list']
+
+
+WDIR = path + '/datasets/' + args.dataset + '/graphs/caselink_heterogeneous'
+if os.path.isdir(WDIR):
+    pass
+else:
+    os.makedirs(WDIR)
+
+
+torch.save(graph, WDIR + '/' + args.data_split + '_graph_bm25top' + str(args.topk_neighbor) + '_charge_thres' + str(args.charge_threshold) + '.pt')
+    
+
+with open(path + '/datasets/' + args.dataset + '/' + args.data_split + '_labels.json', 'r') as f:
+    noticed_case_list = json.load(f)
+    f.close()
+
+labels = graph_labels['case_name_list'].tolist()
+graphs = case_node_embedding_matrix
+query_graph_list = []
+query_graph_label = []
+index_list = []
+for key, value in noticed_case_list.items():
+    k = key.split('.')[0]
+    index = labels.index(int(k))
+    index_list.append(index)
+    query_graph_list.append(graphs[index,:])
+    query_graph_label.append(int(k))
+graph_labels = {'case_name_list': torch.FloatTensor(query_graph_label)}
+
+torch.save([query_graph_list, graph_labels, index_list], WDIR + '/' + args.data_split + '_graph_material_bm25top' + str(args.topk_neighbor) + '_charge_thres' + str(args.charge_threshold) + '.pt')
+print('CaseLink graph construction finished.')
+
