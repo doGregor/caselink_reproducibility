@@ -32,6 +32,7 @@ parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFo
 parser.add_argument("--dataset", type=str, default='coliee_2022', help="coliee_2022, coliee_2023, coliee_2024, or custom")
 parser.add_argument("--stage_num", type=int, default='1', help="1, 2")
 parser.add_argument('--model', type=str, default='SAILER')
+parser.add_argument('--llm', type=str, default='gpt', help="gpt or llama")
 parser.add_argument('--gpu', type=str, default='0')
 args = parser.parse_args()
 print(args)
@@ -76,7 +77,12 @@ tokenizer = AutoTokenizer.from_pretrained(model_name)
 device = torch.device('cuda:' + args.gpu if torch.cuda.is_available() else 'cpu')
 model.to(device)
 
-RDIR_sum = get_path() + '/datasets/' + args.dataset + '/test_summary_txt'
+if args.llm == 'gpt':
+    RDIR_sum = get_path() + '/datasets/' + args.dataset + '/test_summary_txt'
+elif args.llm == 'llama':
+    RDIR_sum = get_path() + '/datasets/' + args.dataset + '/test_summary_txt_llama'
+else:
+    sys.exit("No valid LLM")
 RDIR_refer_sen = get_path() + '/datasets/' + args.dataset + '/test_files_processed_and_referenced'
 files = [f for f in os.listdir(RDIR_sum) if f.endswith('txt')]
 
@@ -178,7 +184,7 @@ if args.stage_num == 1:
     else:
         os.makedirs(predict_path)
     
-    with open(predict_path + str(args.stage_num) + 'stage_coliee_' + time_0 + '.json' , "w") as fOut:
+    with open(predict_path + str(args.stage_num) + 'stage_' + str(args.llm) + '_' + time_0 + '.json' , "w") as fOut:
         json.dump(result_dict, fOut)
         fOut.close()
         
@@ -208,7 +214,7 @@ elif args.stage_num == 2:
 
     ## save the result                
     time_0 = time.strftime("%m%d-%H%M%S")         
-    with open(predict_path + str(args.stage_num) + 'stage_coliee_' + time_0 + '.json' , "w") as fOut:
+    with open(predict_path + str(args.stage_num) + 'stage_' + str(args.llm) + '_' + time_0 + '.json' , "w") as fOut:
         json.dump(result_dict, fOut)
         fOut.close()
 
@@ -247,9 +253,9 @@ macro_pre = cls_pre/len(result_dict.keys())
 macro_recall = cls_recall/len(result_dict.keys())
 macro_F = 2*macro_pre*macro_recall/ (macro_pre + macro_recall+epsilon)
 
-ndcg_score, mrr_score, map_score, p_score = torch_metrics.t_metrics(args.dataset, predict_path + str(args.stage_num) + 'stage_coliee_' + time_0 + '.json')
+ndcg_score, mrr_score, map_score, p_score = torch_metrics.t_metrics(args.dataset, predict_path + str(args.stage_num) + 'stage_' + str(args.llm) + '_' + time_0 + '.json')
 
-with open(predict_path + str(args.stage_num) + 'stage_coliee_' + time_0 +  '.txt', "w") as fOut:
+with open(predict_path + str(args.stage_num) + 'stage_' + str(args.llm) + '_' + time_0 +  '.txt', "w") as fOut:
     fOut.write("Correct Predictions: "+str(correct_pred)+'\n')
     fOut.write("Retrived Cases: "+str(retri_cases)+'\n')
     fOut.write("Relevant Cases: "+str(relevant_cases)+'\n')
