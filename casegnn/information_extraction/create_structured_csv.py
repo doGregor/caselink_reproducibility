@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", type=str, default='coliee_2022', help="coliee_2022, coliee_2023, coliee_2024, or custom")
 parser.add_argument("--data_split", default='train', type=str, help="train or test")
 parser.add_argument("--feature", type=str, default='issue', help="fact or issue")
+parser.add_argument('--llm', type=str, default='gpt', help="gpt or llama")
 args = parser.parse_args()
 
 path = os.getcwd()
@@ -27,7 +28,12 @@ for x in path.split('/'):
 path = '/'.join(path_clean)
 
 if args.feature == "fact":
-    input_path = path + '/datasets/' + args.dataset + '/information_extraction/' + args.data_split + '_summary'
+    if args.llm == "gpt":
+        input_path = path + '/datasets/' + args.dataset + '/information_extraction/' + args.data_split + '_summary'
+    elif args.llm == 'llama':
+        input_path = path + '/datasets/' + args.dataset + '/information_extraction/' + args.data_split + '_summary_llama'
+    else:
+        sys.exit("No valid LLM")
 else:
     input_path = path + '/datasets/' + args.dataset + '/information_extraction/' + args.data_split + '_referenced'
 
