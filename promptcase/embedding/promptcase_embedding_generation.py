@@ -12,6 +12,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", type=str, default='coliee_2022', help="coliee_2022, coliee_2023, coliee_2024, or custom")
 parser.add_argument("--data_split", default='train', type=str, help="train or test")
+parser.add_argument('--llm', type=str, default='gpt', help="gpt or llama")
 args = parser.parse_args()
 
 model_name = 'CSHaitao/SAILER_en_finetune'
@@ -30,12 +31,12 @@ for x in path.split('/'):
         break
 path = '/'.join(path_clean)
 
-# ORIGINAL
-"""
-RDIR_sum = path + '/datasets/' + args.dataset + '/information_extraction/' + args.data_split + '_summary/result/'
-RDIR_refer_sen = path + '/datasets/' + args.dataset + '/information_extraction/' + args.data_split + '_referenced/result/'
-"""
-RDIR_sum = path + '/datasets/' + args.dataset + '/' + args.data_split + '_summary_txt/'
+if args.llm == 'gpt':
+    RDIR_sum = path + '/datasets/' + args.dataset + '/' + args.data_split + '_summary_txt/'
+elif args.llm == 'llama':
+    RDIR_sum = path + '/datasets/' + args.dataset + '/' + args.data_split + '_summary_txt_llama/'
+else:
+    sys.exit("No valid LLM")
 RDIR_refer_sen = path + '/datasets/' + args.dataset + '/' + args.data_split + '_files_processed_and_referenced/'
 
 files = [f for f in os.listdir(RDIR_sum) if f.endswith('txt')]
@@ -100,7 +101,10 @@ with torch.no_grad():
             cross_cls_embedding = cross_embedding[0][:,0] ##cls token embedding [1,768]    
             cross_embedding_matrix = torch.cat((cross_embedding_matrix, cross_cls_embedding), 0) 
 
-WDIR = path + '/datasets/' + args.dataset + '/promptcase_embeddings'
+if args.llm == 'gpt':
+    WDIR = path + '/datasets/' + args.dataset + '/promptcase_embeddings'
+else:
+    WDIR = path + '/datasets/' + args.dataset + '/promptcase_embeddings_llama'
 if os.path.isdir(WDIR):
     pass
 else:
