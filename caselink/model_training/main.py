@@ -42,6 +42,7 @@ parser.add_argument("--lamb", type=float, default=0.001, help="lambda of l_reg")
 ## other parameters
 parser.add_argument("--dataset", type=str, default='coliee_2022', help="coliee_2022, coliee_2023, coliee_2024, or custom")
 parser.add_argument("--gpu", type=str, default='0', help="CUDA GPU position")
+parser.add_argument('--llm', type=str, default='gpt', help="gpt or llama")
 
 args = parser.parse_args()
 
@@ -64,8 +65,16 @@ def get_path():
     return path
 
 
+if args.llm == 'gpt':
+    suffix = ''
+elif args.llm == 'llama':
+    suffix = '_llama'
+else:
+    sys.exit("No valid LLM") 
+
+
 def main():
-    log_dir = get_path() + '/datasets/' + args.dataset + '/caselink_experiments/'
+    log_dir = get_path() + '/datasets/' + args.dataset + '/caselink_experiments' + suffix + '/'
     training_setup = 'lamb' + str(args.lamb) + '_neibtop' + str(args.topk_neighbor) + "_charthre" + str(args.charge_threshold) + '_' + str(args.layer_num) + 'layer_bs' + str(args.batch_size) + '_dp' + str(args.dropout) + '_lr' + str(args.lr) + '_wd'+str(args.wd) + '_t' + str(args.temp) + '_headnum' + str(args.num_heads) + '_hardneg' + str(args.hard_neg_num) + '_ranneg' + str(args.ran_neg_num) + '_' + time.strftime("%m%d-%H%M%S")
     log_dir += training_setup
 
@@ -105,12 +114,12 @@ def main():
 
     ## Load datasets
     ## Train dataset
-    train_graph_and_label = load_graphs(get_path() + '/datasets/' + args.dataset + '/graphs/caselink/train_bm25top' + str(args.topk_neighbor) + '_charge_thres' + str(args.charge_threshold) + '.bin')
+    train_graph_and_label = load_graphs(get_path() + '/datasets/' + args.dataset + '/graphs' + suffix + '/caselink/train_bm25top' + str(args.topk_neighbor) + '_charge_thres' + str(args.charge_threshold) + '.bin')
     train_graphs = train_graph_and_label[0]
     graph_labels = train_graph_and_label[1]['case_name_list'].tolist()
     train_label_list = [str(int(x)).zfill(6) for x in graph_labels]
     
-    train_dataset = SyntheticDataset(file_path=get_path() + '/datasets/' + args.dataset + '/graphs/caselink/train_graph_bin_bm25top' + str(args.topk_neighbor) + '_charge_thres' + str(args.charge_threshold) + '.pt', label_dict=train_labels, train_pool=train_label_list, hard_neg_num=args.hard_neg_num, hard_bm25_dict=bm25_hard_neg_dict)
+    train_dataset = SyntheticDataset(file_path=get_path() + '/datasets/' + args.dataset + '/graphs' + suffix + '/caselink/train_graph_bin_bm25top' + str(args.topk_neighbor) + '_charge_thres' + str(args.charge_threshold) + '.pt', label_dict=train_labels, train_pool=train_label_list, hard_neg_num=args.hard_neg_num, hard_bm25_dict=bm25_hard_neg_dict)
     train_graph = train_dataset.graph_list
     train_label = train_dataset.label_list
     train_sampler = SubsetRandomSampler(torch.arange(len(train_graph)))
@@ -124,7 +133,7 @@ def main():
     
     ## Test dataset 
     test_dataloader = None       
-    test_graph_and_label = load_graphs(get_path() + '/datasets/' + args.dataset + '/graphs/caselink/test_bm25top' + str(args.topk_neighbor) + '_charge_thres' + str(args.charge_threshold) + '.bin')
+    test_graph_and_label = load_graphs(get_path() + '/datasets/' + args.dataset + '/graphs' + suffix + '/caselink/test_bm25top' + str(args.topk_neighbor) + '_charge_thres' + str(args.charge_threshold) + '.bin')
     test_graphs = test_graph_and_label[0]
     test_graph_labels = test_graph_and_label[1]['case_name_list'].tolist()
     test_label_list = [str(int(x)).zfill(6) for x in test_graph_labels]    
@@ -154,9 +163,9 @@ def main():
     con_epoch_num = 0    
     for epoch in tqdm(range(args.epoch)):
         print('Epoch:', epoch)
-        forward(args.dataset, model, device, writer, train_dataloader, train_graph_and_label, train_labels, train_candidate_list, yf_path, epoch, args.batch_size, args.temp, args.lamb, args.hard_neg_num, train_flag=True, test_mask=None, test_label_list=None, test_query_list=None, test_query_index_list=None, optimizer=optimizer, training_setup=training_setup)
+        forward(args.dataset, model, device, writer, train_dataloader, train_graph_and_label, train_labels, train_candidate_list, yf_path, epoch, args.batch_size, args.temp, args.lamb, args.hard_neg_num, train_flag=True, test_mask=None, test_label_list=None, test_query_list=None, test_query_index_list=None, optimizer=optimizer, training_setup=training_setup, suffix=suffix)
         with torch.no_grad():            
-            ndcg_score_yf = forward(args.dataset, model, device, writer, test_dataloader, test_graph_and_label, test_labels, train_candidate_list, yf_path, epoch, args.batch_size, args.temp, args.lamb, args.hard_neg_num, train_flag=False, test_mask=test_mask, test_label_list=test_label_list, test_query_list=test_query_list, test_query_index_list=test_query_index_list, optimizer=optimizer, training_setup=training_setup)
+            ndcg_score_yf = forward(args.dataset, model, device, writer, test_dataloader, test_graph_and_label, test_labels, train_candidate_list, yf_path, epoch, args.batch_size, args.temp, args.lamb, args.hard_neg_num, train_flag=False, test_mask=test_mask, test_label_list=test_label_list, test_query_list=test_query_list, test_query_index_list=test_query_index_list, optimizer=optimizer, training_setup=training_setup, suffix=suffix)
 
         ## Early stopping
         stop_para = early_stopping(highest_ndcg, ndcg_score_yf, epoch, con_epoch_num)

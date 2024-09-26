@@ -20,7 +20,7 @@ def get_path():
     return path
 
 
-def forward(dataset, model, device, writer, dataloader, data, label_dict, train_candidate_list, yf_path, epoch, batch_size, temp, lamb, hard_neg_num, train_flag, test_mask, test_label_list, test_query_list, test_query_index_list, optimizer=None,  training_setup='tmp'):
+def forward(dataset, model, device, writer, dataloader, data, label_dict, train_candidate_list, yf_path, epoch, batch_size, temp, lamb, hard_neg_num, train_flag, test_mask, test_label_list, test_query_list, test_query_index_list, optimizer=None,  training_setup='tmp', suffix=''):
     if train_flag:
         ## Training
         model.train()
@@ -194,7 +194,7 @@ def forward(dataset, model, device, writer, dataloader, data, label_dict, train_
             writer.add_scalar("One stage yf/MRR yf", mrr_score_yf, epoch)
             writer.add_scalar("One stage yf/MAP yf", map_score_yf, epoch)
             
-            predict_path = get_path() + '/datasets/' + dataset + '/caselink_experiments/'
+            predict_path = get_path() + '/datasets/' + dataset + '/caselink_experiments' + suffix + '/'
             with open(predict_path + training_setup + '.txt', "a") as fOut:
                 fOut.write(10*'*' + f' {epoch} ' + 10*'*' + '\n')
                 fOut.write('\n')

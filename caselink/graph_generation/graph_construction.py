@@ -15,6 +15,7 @@ parser.add_argument("--dataset", type=str, default='coliee_2022', help="coliee_2
 parser.add_argument("--data_split", default='train', type=str, help="train or test")
 parser.add_argument("--topk_neighbor", default=5, type=int, help="5 10 20")
 parser.add_argument("--charge_threshold", default=0.9, type=float, help="0.85 0.9 0.95") 
+parser.add_argument('--llm', type=str, default='gpt', help="gpt or llama")
 args = parser.parse_args()
 
 model_name = 'CSHaitao/SAILER_en_finetune'
@@ -33,6 +34,14 @@ for x in path.split('/'):
         path_clean.append(x)
         break
 path = '/'.join(path_clean)
+
+
+if args.llm == 'gpt':
+    suffix = ''
+elif args.llm == 'llama':
+    suffix = '_llama'
+else:
+    sys.exit("No valid LLM") 
 
 
 ##Load bm25 matrix
@@ -139,10 +148,10 @@ weight_edge_matrix_2 = torch.cat((binary_case_charge_tensor.T.to(device), binary
 edge_weight_matrix = torch.cat((weight_edge_matrix_1.to(device), weight_edge_matrix_2.to(device)), 1)
 
 # ##Load node embedding  
-with open(path + '/datasets/' + args.dataset + '/casegnn_embeddings/' + args.data_split + '_casegnn_embedding.pt', "rb") as fIn:
+with open(path + '/datasets/' + args.dataset + '/casegnn_embeddings' + suffix + '/' + args.data_split + '_casegnn_embedding.pt', "rb") as fIn:
     case_embedding_matrix =torch.load(fIn) 
 case_embedding_matrix = case_embedding_matrix.to('cpu')
-with open(path + '/datasets/' + args.dataset + '/casegnn_embeddings/' + args.data_split + '_casegnn_embedding_case_name_list.json', 'rb') as fIn:
+with open(path + '/datasets/' + args.dataset + '/casegnn_embeddings' + suffix + '/' + args.data_split + '_casegnn_embedding_case_name_list.json', 'rb') as fIn:
     case_embedding_matrix_case_name_list = json.load(fIn)
     
 node_embedding = []
@@ -181,7 +190,7 @@ node_name = [int(i.split('.')[0])  for i in bm25_score_matrix_case_name]
 tensor_node_name = torch.FloatTensor(node_name)
 graph_labels.update({'case_name_list': tensor_node_name})
 
-WDIR = path + '/datasets/' + args.dataset + '/graphs/caselink'
+WDIR = path + '/datasets/' + args.dataset + '/graphs' + suffix + '/caselink'
 if os.path.isdir(WDIR):
     pass
 else:
