@@ -21,7 +21,7 @@ def get_path():
     return path
 
 
-def forward(data, model, device, writer, dataloader, sumfact_pool_dataset, referissue_pool_dataset, label_dict, yf_path, epoch, temp, bm25_hard_neg_dict, hard_neg, hard_neg_num, train_flag, embedding_saving, optimizer=None, training_setup='tmp'):
+def forward(data, model, device, writer, dataloader, sumfact_pool_dataset, referissue_pool_dataset, label_dict, yf_path, epoch, temp, bm25_hard_neg_dict, hard_neg, hard_neg_num, train_flag, embedding_saving, optimizer=None, training_setup='tmp', suffix=''):
     if train_flag:
         ## Training
         loss_model = nn.CrossEntropyLoss()
@@ -253,7 +253,7 @@ def forward(data, model, device, writer, dataloader, sumfact_pool_dataset, refer
             print("MRR@5 yf: ", mrr_score_yf)
             print("MAP yf: ", map_score_yf)
             
-            predict_path = get_path() + '/datasets/' + data + '/casegnn_experiments/'
+            predict_path = get_path() + '/datasets/' + data + '/casegnn_experiments' + suffix + '/'
             with open(predict_path + training_setup + '.txt', "a") as fOut:
                 fOut.write(10*'*' + f' {epoch} ' + 10*'*' + '\n')
                 fOut.write('\n')
@@ -380,7 +380,7 @@ def forward(data, model, device, writer, dataloader, sumfact_pool_dataset, refer
         else:
             dataset = 'test'
         
-        save_embeddings_path = get_path() + '/datasets/' + data + '/casegnn_embeddings'
+        save_embeddings_path = get_path() + '/datasets/' + data + '/casegnn_embeddings' + suffix
         if not os.path.exists(save_embeddings_path):
             os.makedirs(save_embeddings_path)
         

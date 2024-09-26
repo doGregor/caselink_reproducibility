@@ -21,6 +21,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", type=str, default='coliee_2022', help="coliee_2022, coliee_2023, coliee_2024, or custom")
 parser.add_argument("--data_split", default='train', type=str, help="train or test")
 parser.add_argument("--feature", type=str, default='fact', help="fact or issue")
+parser.add_argument('--llm', type=str, default='gpt', help="gpt or llama")
 parser.add_argument("--gpu", type=str, default='0')
 args = parser.parse_args()
 
@@ -43,13 +44,24 @@ for x in path.split('/'):
 path = '/'.join(path_clean)
 
 
-candidate_matrix = torch.load(path + '/datasets/' + args.dataset + "/promptcase_embeddings/"  + args.data_split + "_fact_issue_cross_embedding.pt")
-
-with open(path + '/datasets/' + args.dataset + "/promptcase_embeddings/"  + args.data_split + "_fact_issue_cross_embedding_case_list.json", "rb")as fIn:
-    candidate_matrix_index = json.load(fIn) 
+if args.llm == 'gpt':
+    candidate_matrix = torch.load(path + '/datasets/' + args.dataset + "/promptcase_embeddings/"  + args.data_split + "_fact_issue_cross_embedding.pt")
+    
+    with open(path + '/datasets/' + args.dataset + "/promptcase_embeddings/"  + args.data_split + "_fact_issue_cross_embedding_case_list.json", "rb")as fIn:
+        candidate_matrix_index = json.load(fIn)
+elif args.llm == 'llama':
+    candidate_matrix = torch.load(path + '/datasets/' + args.dataset + "/promptcase_embeddings_llama/"  + args.data_split + "_fact_issue_cross_embedding.pt")
+    
+    with open(path + '/datasets/' + args.dataset + "/promptcase_embeddings_llama/"  + args.data_split + "_fact_issue_cross_embedding_case_list.json", "rb")as fIn:
+        candidate_matrix_index = json.load(fIn)
+else:
+    sys.exit("No valid LLM") 
 
 if args.feature == 'fact':
-    ie_path = path + '/datasets/' + args.dataset + "/information_extraction/" + args.data_split + "_summary/result/"
+    if args.llm == 'gpt':
+        ie_path = path + '/datasets/' + args.dataset + "/information_extraction/" + args.data_split + "_summary/result/"
+    else:
+        ie_path = path + '/datasets/' + args.dataset + "/information_extraction/" + args.data_split + "_summary_llama/result/"
     embedding_index = 0
 elif args.feature == 'issue':
     ie_path = path + '/datasets/' + args.dataset + "/information_extraction/" + args.data_split + "_referenced/result/"
@@ -178,7 +190,10 @@ with torch.no_grad():
 tensor_graph_name = torch.FloatTensor(graph_name_list)
 graph_labels.update({'name_list': tensor_graph_name})
 
-WDIR = path + '/datasets/' + args.dataset + '/graphs/casegnn'
+if args.llm == 'gpt':
+    WDIR = path + '/datasets/' + args.dataset + '/graphs/casegnn'
+else:
+    WDIR = path + '/datasets/' + args.dataset + '/graphs_llama/casegnn'
 if os.path.isdir(WDIR):
     pass
 else:
