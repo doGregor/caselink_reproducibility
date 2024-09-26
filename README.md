@@ -182,12 +182,12 @@ python caselink/heterogeneous_model_training/main.py --h_dim=1536 --dropout=0.2 
 ```
 python promptcase/preprocessing/llama.py --dataset coliee_2022 --data_split test
 
-python promptcase/preprocessing/llama.py --dataset coliee_2022 --data_split test
+python promptcase/preprocessing/llama.py --dataset coliee_2022 --data_split train
 ```
 
-instead of `promptcase/preprocessing/openaiAPI.py` in step 2.1.1
+Run the summary generation above instead of `promptcase/preprocessing/openaiAPI.py` in step 2.1.1
 
-From step 2.1.2 all commands that include the `fact` summaries can be executed with an additional parameter that indicates the summaries to use. Either `--llm gpt` or `--llm llama`.
+From step 2.1.2 on, all commands (except those that are only based on `issue`) can be executed with an additional parameter that indicates the summaries to use. Either `--llm gpt` (GPT 3.5) or `--llm llama` (Llama 8b Instruct).
 
 
 # PromptCase Baseline
