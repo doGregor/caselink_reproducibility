@@ -2,7 +2,7 @@
 
 ## Datastructure
 
-To improve the reproducibility of CaseLine with new datasets we modified the folder structure of the datasets and the scripts to a more generic setting. Subfolders now do not need specific dataset names or year numbers in their path anymore. Additionally, folders during preprocessing are automatically created and placed in the respective dataset subfolder. In general, all datasets are located in `./datasets/`. The structure in the dataset-specific sub-folders looks as follows:
+To improve the reproducibility of PromtpCase, CaseGNN and CaseLink with new datasets we modified the folder structure of the datasets and the scripts to a more generic setting. Subfolders now do not need specific dataset names or year numbers in their path anymore. Additionally, folders during preprocessing are automatically created and placed in the respective dataset subfolder. In general, all datasets are located in `./datasets/`. The initially required structure in the dataset-specific subfolders looks as follows:
 
 ```
     $ ./caselink_reproducibility/
@@ -121,6 +121,7 @@ python casegnn/graph_generation/TACG.py --dataset coliee_2022 --data_split train
 python casegnn/graph_generation/TACG.py --dataset coliee_2022 --data_split train --feature issue
 ```
 
+
 ### 2.4. Prepare final Documents before Training (Based on CaseGNN)
 
 ```
@@ -131,35 +132,67 @@ python casegnn/graph_generation/hard_bm25_top50.py --dataset coliee_2022
 ```
 
 
---- TODO FULL AB HIER
-
 ### 2.4. CaseGNN Model Training and CaseGNN Embedding Generation (Based on CaseGNN)
 
 ```
-python casegnn/model_training/main.py --in_dim=768 --h_dim=768 --out_dim=768 --dropout=0.1 --num_head=1 --epoch=600 --lr=5e-5 --wd=5e-5 --batch_size=16 --temp=0.1 --ran_neg_num=1 --hard_neg=True --hard_neg_num=5 --dataset=coliee_2022
+python casegnn/model_training/main.py --in_dim=768 --h_dim=768 --out_dim=768 --dropout=0.1 --num_head=1 --epoch=1000 --lr=5e-6 --wd=5e-5 --batch_size=32 --temp=0.1 --ran_neg_num=1 --hard_neg=True --hard_neg_num=5 --dataset=coliee_2022
 ```
 
 
 ## 3. CaseLink Graph Construction
 
 ```
-python caselink/graph_generation/graph_construction.py --data 2022 --dataset test --topk_neighbor 5 --charge_threshold 0.9
+python caselink/graph_generation/graph_construction.py --dataset coliee_2022 --data_split test --topk_neighbor 5 --charge_threshold 0.9
 
 
-python caselink/graph_generation/graph_construction.py --data 2022 --dataset train --topk_neighbor 5 --charge_threshold 0.9
+python caselink/graph_generation/graph_construction.py --dataset coliee_2022 --data_split train --topk_neighbor 5 --charge_threshold 0.9
 ```
 
 
 ## 3. CaseLink Model Training
 
 ```
-python caselink/model_training/main.py --in_dim=1536 --h_dim=1536 --out_dim=1536 --dropout=0.2 --epoch=100 --lr=1e-4 --wd=1e-4 --batch_size=128 --temp=0.1 --hard_neg_num=10 --num_heads=1 --ran_neg_num=1 --layer_num=2 --topk_neighbor=5 --charge_threshold=0.9 --lamb=0.001 --dataset=coliee_2022
+python caselink/model_training/main.py --in_dim=1536 --h_dim=1536 --out_dim=1536 --dropout=0.2 --epoch=1000 --lr=1e-4 --wd=1e-4 --batch_size=128 --temp=0.1 --hard_neg_num=10 --num_heads=1 --ran_neg_num=1 --layer_num=2 --topk_neighbor=5 --charge_threshold=0.9 --lamb=0.001 --dataset=coliee_2022 --gpu 0
 ```
 
 
-# Baselines
+# Heterogeneous GNN
 
-## PromptCase
+## 1. Create Heterogeneous Graphs
+
+```
+python caselink/graph_generation/heterogeneous_graph_construction.py --dataset coliee_2022 --data_split test --topk_neighbor 5 --charge_threshold 0.9
+
+
+python caselink/graph_generation/heterogeneous_graph_construction.py --dataset coliee_2022 --data_split train --topk_neighbor 5 --charge_threshold 0.9
+```
+
+
+## 2. Run Heterogeneous CaseLink
+
+```
+python caselink/heterogeneous_model_training/main.py --h_dim=1536 --dropout=0.2 --epoch=1000 --lr=0.00001 --wd=0 --batch_size=128 --temp=0.1 --hard_neg_num=5 --num_heads=1 --ran_neg_num=1 --layer_num=2 --topk_neighbor=5 --charge_threshold=0.9 --lamb=0.001 --dataset coliee_2022 --gpu 1
+```
+
+
+# Llama as LLM in Promptcase
+
+## 1. Run Summary Generation
+
+```
+python promptcase/preprocessing/llama.py --dataset coliee_2022 --data_split test
+
+python promptcase/preprocessing/llama.py --dataset coliee_2022 --data_split test
+```
+
+instead of `promptcase/preprocessing/openaiAPI.py` in step 2.1.1
+
+From step 2.1.2 all commands that include the `fact` summaries can be executed with an additional parameter that indicates the summaries to use. Either `--llm gpt` or `--llm llama`.
+
+
+# PromptCase Baseline
+
+Based on the LLM used to previously generate the case summaries the `--llm` parameter can be left to default `gpt` (ChatGPT 3.5) or set to `llama` (Llama 3.1 8b Instruct).
 
 ```
 python promptcase/model_training/main.py --dataset coliee_2022 --stage_num 1
