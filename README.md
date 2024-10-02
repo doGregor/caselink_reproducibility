@@ -33,6 +33,13 @@ To improve the reproducibility of PromtpCase, CaseGNN and CaseLink with new data
 ```
 
 
+## Preparation
+
+Start initially with installing the requirements for this project by running `pip install -r requirements.txt`.
+
+If you want to run the setup based on an OpenAI's GPT model you also need to place a file called `openai_api_key.txt` in the root directory of this project which contains a valid OpenAI account key.
+
+
 ## 1. Create BM25 Matrices
 
 Run BM25 matrix generation:
