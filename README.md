@@ -187,7 +187,7 @@ python caselink/heterogeneous_model_training/main.py --h_dim=1536 --dropout=0.2 
 # Llama as LLM in Promptcase
 
 Note: Running this requires to first request access to the Llama 3.1 repository on huggingface. More information can be found on the page directly:
-https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct
+https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct
 
 ## Run Summary Generation
 
