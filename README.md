@@ -37,7 +37,7 @@ To improve the reproducibility of PromtpCase, CaseGNN and CaseLink with new data
 
 Start initially with installing the requirements for this project by running `pip install -r requirements.txt`.
 
-If you want to run the setup based on an OpenAI's GPT model you also need to place a file called `openai_api_key.txt` in the root directory of this project which contains a valid OpenAI account key.
+If you want to run the setup based on an OpenAI GPT model you also need to place a file called `openai_api_key.txt` in the root directory of this project which contains a valid OpenAI account key.
 
 
 ## 1. Create BM25 Matrices
@@ -139,7 +139,7 @@ python casegnn/graph_generation/hard_bm25_top50.py --dataset coliee_2022
 ```
 
 
-### 2.4. CaseGNN Model Training and CaseGNN Embedding Generation (Based on CaseGNN)
+### 2.5. CaseGNN Model Training and CaseGNN Embedding Generation (Based on CaseGNN)
 
 ```
 python casegnn/model_training/main.py --in_dim=768 --h_dim=768 --out_dim=768 --dropout=0.1 --num_head=1 --epoch=1000 --lr=5e-6 --wd=5e-5 --batch_size=32 --temp=0.1 --ran_neg_num=1 --hard_neg=True --hard_neg_num=5 --dataset=coliee_2022
@@ -156,7 +156,7 @@ python caselink/graph_generation/graph_construction.py --dataset coliee_2022 --d
 ```
 
 
-## 3. CaseLink Model Training
+## 4. CaseLink Model Training
 
 ```
 python caselink/model_training/main.py --in_dim=1536 --h_dim=1536 --out_dim=1536 --dropout=0.2 --epoch=1000 --lr=1e-4 --wd=1e-4 --batch_size=128 --temp=0.1 --hard_neg_num=10 --num_heads=1 --ran_neg_num=1 --layer_num=2 --topk_neighbor=5 --charge_threshold=0.9 --lamb=0.001 --dataset=coliee_2022 --gpu 0
@@ -164,6 +164,8 @@ python caselink/model_training/main.py --in_dim=1536 --h_dim=1536 --out_dim=1536
 
 
 # Heterogeneous GNN
+
+Note: To run the setup with heterogeneous graphs and a heterogeneous GNN, all steps up to step 3 have to be completed before.
 
 ## 1. Create Heterogeneous Graphs
 
@@ -184,7 +186,10 @@ python caselink/heterogeneous_model_training/main.py --h_dim=1536 --dropout=0.2 
 
 # Llama as LLM in Promptcase
 
-## 1. Run Summary Generation
+Note: Running this requires to first request access to the Llama 3.1 repository on huggingface. More information can be found on the page directly:
+https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct
+
+## Run Summary Generation
 
 ```
 python promptcase/preprocessing/llama.py --dataset coliee_2022 --data_split test
