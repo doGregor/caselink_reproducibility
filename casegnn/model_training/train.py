@@ -21,7 +21,7 @@ def get_path():
     return path
 
 
-def forward(data, model, device, writer, dataloader, sumfact_pool_dataset, referissue_pool_dataset, label_dict, yf_path, epoch, temp, bm25_hard_neg_dict, hard_neg, hard_neg_num, train_flag, embedding_saving, optimizer=None, training_setup='tmp', suffix=''):
+def forward(data, model, device, writer, dataloader, sumfact_pool_dataset, referissue_pool_dataset, label_dict, yf_path, epoch, temp, bm25_hard_neg_dict, hard_neg, hard_neg_num, train_flag, embedding_saving, prediction_saving, optimizer=None, training_setup='tmp', suffix=''):
     if train_flag:
         ## Training
         loss_model = nn.CrossEntropyLoss()
@@ -220,79 +220,85 @@ def forward(data, model, device, writer, dataloader, sumfact_pool_dataset, refer
             ndcg_score, mrr_score, map_score, p_score = t_metrics(label_dict, final_pre_dict, 5)
             ndcg_score_yf, mrr_score_yf, map_score_yf, p_score_yf = t_metrics(label_dict, yf_dict, 5)
 
+            if prediction_saving:
+                print('Saving predictions...')
+                predict_path = get_path() + '/datasets/' + data + '/casegnn_experiments' + suffix + '/'
+                with open(predict_path + training_setup + '.json' , "w") as fOut:
+                    json.dump(final_pre_dict, fOut)
+                    fOut.close()
+            else:
+                print("Correct Predictions: ", correct_pred)
+                print("Retrived Cases: ", retri_cases)
+                print("Relevant Cases: ", relevant_cases)
 
-            print("Correct Predictions: ", correct_pred)
-            print("Retrived Cases: ", retri_cases)
-            print("Relevant Cases: ", relevant_cases)
+                print("Micro Precision: ", Micro_pre)
+                print("Micro Recall: ", Micro_recall)
+                print("Micro F1: ", Micro_F)
 
-            print("Micro Precision: ", Micro_pre)
-            print("Micro Recall: ", Micro_recall)
-            print("Micro F1: ", Micro_F)
+                print("Macro Precision: ", macro_pre)
+                print("Macro Recall: ", macro_recall)
+                print("Macro F1: ", macro_F)
 
-            print("Macro Precision: ", macro_pre)
-            print("Macro Recall: ", macro_recall)
-            print("Macro F1: ", macro_F)
+                print("NDCG@5: ", ndcg_score)
+                print("MRR@5: ", mrr_score)
+                print("MAP: ", map_score)
 
-            print("NDCG@5: ", ndcg_score)
-            print("MRR@5: ", mrr_score)
-            print("MAP: ", map_score)
+                print("Correct Predictions yf: ", correct_pred_yf)
+                print("Retrived Cases yf: ", retri_cases_yf)
+                print("Relevant Cases yf: ", relevant_cases_yf)
 
-            print("Correct Predictions yf: ", correct_pred_yf)
-            print("Retrived Cases yf: ", retri_cases_yf)
-            print("Relevant Cases yf: ", relevant_cases_yf)
+                print("Micro Precision yf: ", Micro_pre_yf)
+                print("Micro Recall yf: ", Micro_recall_yf)
+                print("Micro F1 yf: ", Micro_F_yf)
 
-            print("Micro Precision yf: ", Micro_pre_yf)
-            print("Micro Recall yf: ", Micro_recall_yf)
-            print("Micro F1 yf: ", Micro_F_yf)
+                print("Macro Precision yf: ", macro_pre_yf)
+                print("Macro Recall yf: ", macro_recall_yf)
+                print("Macro F1 yf: ", macro_F_yf)
 
-            print("Macro Precision yf: ", macro_pre_yf)
-            print("Macro Recall yf: ", macro_recall_yf)
-            print("Macro F1 yf: ", macro_F_yf)
+                print("NDCG@5 yf: ", ndcg_score_yf)
+                print("MRR@5 yf: ", mrr_score_yf)
+                print("MAP yf: ", map_score_yf)
 
-            print("NDCG@5 yf: ", ndcg_score_yf)
-            print("MRR@5 yf: ", mrr_score_yf)
-            print("MAP yf: ", map_score_yf)
-            
-            predict_path = get_path() + '/datasets/' + data + '/casegnn_experiments' + suffix + '/'
-            with open(predict_path + training_setup + '.txt', "a") as fOut:
-                fOut.write(10*'*' + f' {epoch} ' + 10*'*' + '\n')
-                fOut.write('\n')
-                
-                fOut.write("Correct Predictions: "+str(correct_pred)+'\n')
-                fOut.write("Retrived Cases: "+str(retri_cases)+'\n')
-                fOut.write("Relevant Cases: "+str(relevant_cases)+'\n')
+                predict_path = get_path() + '/datasets/' + data + '/casegnn_experiments' + suffix + '/'
+                with open(predict_path + training_setup + '.txt', "a") as fOut:
+                    fOut.write(10*'*' + f' {epoch} ' + 10*'*' + '\n')
+                    fOut.write('\n')
 
-                fOut.write("Micro Precision: "+str(Micro_pre)+'\n')
-                fOut.write("Micro Recall: "+str(Micro_recall)+'\n')
-                fOut.write("Micro F1: "+str(Micro_F)+'\n')
+                    fOut.write("Correct Predictions: "+str(correct_pred)+'\n')
+                    fOut.write("Retrived Cases: "+str(retri_cases)+'\n')
+                    fOut.write("Relevant Cases: "+str(relevant_cases)+'\n')
 
-                fOut.write("Macro Precision: "+str(macro_pre)+'\n')
-                fOut.write("Macro Recall: "+str(macro_recall)+'\n')
-                fOut.write("Macro F1: "+str(macro_F)+'\n')
+                    fOut.write("Micro Precision: "+str(Micro_pre)+'\n')
+                    fOut.write("Micro Recall: "+str(Micro_recall)+'\n')
+                    fOut.write("Micro F1: "+str(Micro_F)+'\n')
 
-                fOut.write("NDCG@5: "+str(ndcg_score)+'\n')
-                fOut.write("MRR@5: "+str(mrr_score)+'\n')
-                fOut.write("MAP: "+str(map_score)+'\n')
+                    fOut.write("Macro Precision: "+str(macro_pre)+'\n')
+                    fOut.write("Macro Recall: "+str(macro_recall)+'\n')
+                    fOut.write("Macro F1: "+str(macro_F)+'\n')
 
-                fOut.write("Correct Predictions yf: "+str(correct_pred_yf)+'\n')
-                fOut.write("Retrived Cases yf: "+str(retri_cases_yf)+'\n')
-                fOut.write("Relevant Cases yf: "+str(relevant_cases_yf)+'\n')
+                    fOut.write("NDCG@5: "+str(ndcg_score)+'\n')
+                    fOut.write("MRR@5: "+str(mrr_score)+'\n')
+                    fOut.write("MAP: "+str(map_score)+'\n')
 
-                fOut.write("Micro Precision yf: "+str(Micro_pre_yf)+'\n')
-                fOut.write("Micro Recall yf: "+str(Micro_recall_yf)+'\n')
-                fOut.write("Micro F1 yf: "+str(Micro_F_yf)+'\n')
+                    fOut.write("Correct Predictions yf: "+str(correct_pred_yf)+'\n')
+                    fOut.write("Retrived Cases yf: "+str(retri_cases_yf)+'\n')
+                    fOut.write("Relevant Cases yf: "+str(relevant_cases_yf)+'\n')
 
-                fOut.write("Macro Precision yf: "+str(macro_pre_yf)+'\n')
-                fOut.write("Macro Recall yf: "+str(macro_recall_yf)+'\n')
-                fOut.write("Macro F1 yf: "+str(macro_F_yf)+'\n')
+                    fOut.write("Micro Precision yf: "+str(Micro_pre_yf)+'\n')
+                    fOut.write("Micro Recall yf: "+str(Micro_recall_yf)+'\n')
+                    fOut.write("Micro F1 yf: "+str(Micro_F_yf)+'\n')
 
-                fOut.write("NDCG@5 yf: "+str(ndcg_score_yf)+'\n')
-                fOut.write("MRR@5 yf: "+str(mrr_score_yf)+'\n')
-                fOut.write("MAP yf: "+str(map_score_yf)+'\n')
+                    fOut.write("Macro Precision yf: "+str(macro_pre_yf)+'\n')
+                    fOut.write("Macro Recall yf: "+str(macro_recall_yf)+'\n')
+                    fOut.write("Macro F1 yf: "+str(macro_F_yf)+'\n')
 
-                fOut.write('\n')
-                
-                fOut.close()
+                    fOut.write("NDCG@5 yf: "+str(ndcg_score_yf)+'\n')
+                    fOut.write("MRR@5 yf: "+str(mrr_score_yf)+'\n')
+                    fOut.write("MAP yf: "+str(map_score_yf)+'\n')
+
+                    fOut.write('\n')
+
+                    fOut.close()
 
     if embedding_saving:
         model.eval()
