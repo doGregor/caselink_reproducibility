@@ -16,12 +16,13 @@ parser.add_argument("--data_split", default='train', type=str, help="train or te
 parser.add_argument("--topk_neighbor", default=5, type=int, help="5 10 20")
 parser.add_argument("--charge_threshold", default=0.9, type=float, help="0.85 0.9 0.95") 
 parser.add_argument('--llm', type=str, default='gpt', help="gpt or llama")
+parser.add_argument('--gpu', type=str, default='0', help="gpu number can be set")
 args = parser.parse_args()
 
 model_name = 'CSHaitao/SAILER_en_finetune'
 model = AutoModel.from_pretrained(model_name)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:' + args.gpu if torch.cuda.is_available() else 'cpu')
 model.to(device)
 
 
