@@ -159,14 +159,19 @@ def main():
         os.makedirs(log_dir)
     logging.warning('logging to {}'.format(log_dir))
 
+    highest_ndcg_score_yf = 0
     highest_ndcg = 0
     con_epoch_num = 0    
     for epoch in tqdm(range(args.epoch)):
         print('Epoch:', epoch)
-        forward(args.dataset, model, device, writer, train_dataloader, train_graph_and_label, train_labels, train_candidate_list, yf_path, epoch, args.batch_size, args.temp, args.lamb, args.hard_neg_num, train_flag=True, test_mask=None, test_label_list=None, test_query_list=None, test_query_index_list=None, optimizer=optimizer, training_setup=training_setup, suffix=suffix)
+        forward(args.dataset, model, device, writer, train_dataloader, train_graph_and_label, train_labels, train_candidate_list, yf_path, epoch, args.batch_size, args.temp, args.lamb, args.hard_neg_num, train_flag=True, test_mask=None, test_label_list=None, test_query_list=None, test_query_index_list=None, prediction_saving=False, optimizer=optimizer, training_setup=training_setup, suffix=suffix)
         with torch.no_grad():            
-            ndcg_score_yf = forward(args.dataset, model, device, writer, test_dataloader, test_graph_and_label, test_labels, train_candidate_list, yf_path, epoch, args.batch_size, args.temp, args.lamb, args.hard_neg_num, train_flag=False, test_mask=test_mask, test_label_list=test_label_list, test_query_list=test_query_list, test_query_index_list=test_query_index_list, optimizer=optimizer, training_setup=training_setup, suffix=suffix)
+            ndcg_score_yf = forward(args.dataset, model, device, writer, test_dataloader, test_graph_and_label, test_labels, train_candidate_list, yf_path, epoch, args.batch_size, args.temp, args.lamb, args.hard_neg_num, train_flag=False, test_mask=test_mask, test_label_list=test_label_list, test_query_list=test_query_list, test_query_index_list=test_query_index_list, prediction_saving=False, optimizer=optimizer, training_setup=training_setup, suffix=suffix)
 
+        if ndcg_score_yf > highest_ndcg_score_yf:
+            highest_ndcg_score_yf = ndcg_score_yf
+            ndcg_score_yf = forward(args.dataset, model, device, writer, test_dataloader, test_graph_and_label, test_labels, train_candidate_list, yf_path, epoch, args.batch_size, args.temp, args.lamb, args.hard_neg_num, train_flag=False, test_mask=test_mask, test_label_list=test_label_list, test_query_list=test_query_list, test_query_index_list=test_query_index_list, prediction_saving=True, optimizer=optimizer, training_setup=training_setup, suffix=suffix)
+            
         ## Early stopping
         stop_para = early_stopping(highest_ndcg, ndcg_score_yf, epoch, con_epoch_num)
         highest_ndcg = stop_para[0]
