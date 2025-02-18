@@ -39,7 +39,7 @@ Start initially with installing the requirements for this project by running `pi
 
 If you want to run the setup based on an OpenAI GPT model you also need to place a file called `openai_api_key.txt` in the root directory of this project which contains a valid OpenAI account key.
 
-To start from artifacts of our reproducibility study (embeddings, graphs runs) you can download this data via this [link](https://www.dropbox.com/scl/fo/56rj77e79sfnjmb0nt0xh/AAEXQIVrpW6lLmDDOrc6hhE?rlkey=fvdlwe7ipldus3twv0i3gy2qt&st=vmpfmop4&dl=0).
+To start from artifacts of our reproducibility study (embeddings, graphs, predictions) you can download this data via this [link](https://www.dropbox.com/scl/fo/56rj77e79sfnjmb0nt0xh/AAEXQIVrpW6lLmDDOrc6hhE?rlkey=fvdlwe7ipldus3twv0i3gy2qt&st=vmpfmop4&dl=0).
 Note: we do not share the original dataset nor files that are very similar after pre-processing, as this is not allowed by the creators of the original dataset.
 
 
